@@ -6,7 +6,7 @@ export default function Button({
 }) {
   return (
     <button
-      className={`${isRounded ? "rounded-full" : "rounded-md"} px-4 py-2`}
+      className={`${isRounded ? "rounded-full" : "rounded-md"} px-4 py-2 focus:outline-none`}
       style={{ color: textColor, backgroundColor: backgroundColor }}
     >
       {text}

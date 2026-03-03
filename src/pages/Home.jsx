@@ -5,18 +5,15 @@ import Button from "../components/ui/Button";
 import Card from "../components/assets/card";
 import { Image, Tag, Calendar } from "lucide-react";
 
-const images = import.meta.glob("../assets/imgs/*.jpg", { eager: true });
+const images = import.meta.glob("../assets/imgs/temp/*.jpg", { eager: true });
 
 export default function Home() {
   return (
     <PageContainer>
-      {" "}
       <div className="flex justify-between items-center py-6">
         <div>
-          <h1 className="text-4xl font-bold">Captivate Media Hub</h1>
-          <p className="text-slate-500">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit.
-          </p>
+          <h1 className="text-4xl font-bold mb-1">Captivate Media Hub</h1>
+          <p className="text-slate-500">Centralized media for every project.</p>
         </div>
 
         <div>
@@ -58,7 +55,10 @@ export default function Home() {
             {Object.values(images)
               .slice(0, 10)
               .map((img, i) => (
-                <div key={i} className="rounded-lg overflow-hidden">
+                <div
+                  key={i}
+                  className="rounded-lg overflow-hidden hover:scale-105 transition-transform duration-200 cursor-pointer"
+                >
                   <img
                     src={img.default}
                     className="w-full h-full object-cover aspect-square"
