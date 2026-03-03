@@ -19,9 +19,8 @@ export default function Home() {
         <div>
           <Button
             text="Upload Media"
-            isRounded={false}
-            textColor="#ffffff"
-            backgroundColor="#007bff"
+            rounded="sm"
+            className="bg-brand-primary text-white"
           />
         </div>
       </div>
@@ -47,7 +46,9 @@ export default function Home() {
       <div>
         <div className="flex justify-between items-center py-6">
           <h2 className="text-2xl font-semibold">Recent Uploads</h2>
-          <Link className="text-blue-500 underline">View Library {">"}</Link>
+          <Link className="text-brand-primary underline">
+            View Full Library {">"}
+          </Link>
         </div>
 
         <div className="pb-6">

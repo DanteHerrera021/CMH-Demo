@@ -4,7 +4,7 @@ import { Settings } from "lucide-react";
 
 export default function Navbar() {
   return (
-    <nav className="bg-white shadow">
+    <nav className="bg-ui-surface shadow">
       <div className="mx-auto px-6 md:px-10 xl:px-16">
         <div className="flex justify-between items-center h-[75px]">
           <div className="h-[75%]">
