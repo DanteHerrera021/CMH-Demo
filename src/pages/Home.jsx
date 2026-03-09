@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { PageContainer } from "../components/layout/PageContainer";
-import Button from "../components/ui/Button";
+import Button from "../components/ui/button";
 import Card from "../components/assets/card";
 import { Image, Tag, Calendar } from "lucide-react";
 
@@ -10,7 +10,7 @@ const images = import.meta.glob("../assets/imgs/temp/*.jpg", { eager: true });
 export default function Home() {
   return (
     <PageContainer>
-      <div className="flex justify-between items-center py-6">
+      <div className="flex flex-col md:flex-row justify-between items-center py-6">
         <div>
           <h1 className="text-4xl font-bold mb-1">Captivate Media Hub</h1>
           <p className="text-slate-500">Centralized media for every project.</p>
