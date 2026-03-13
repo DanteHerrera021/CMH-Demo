@@ -1,8 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { PageContainer } from "../components/layout/PageContainer";
-import Button from "../components/ui/button";
-import Card from "../components/assets/card";
+import Button from "../components/ui/Button";
+import Card from "../components/assets/Card";
 import { Image, Tag, Calendar } from "lucide-react";
 
 const images = import.meta.glob("../assets/imgs/temp/*.jpg", { eager: true });

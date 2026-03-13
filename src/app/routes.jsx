@@ -7,6 +7,7 @@ import Home from "../pages/Home";
 // import Upload from "../pages/Upload";
 import Image, { imageLoader } from "../pages/Image";
 import NotFound from "../pages/NotFound";
+import Settings from "../pages/Settings";
 
 const router = createHashRouter([
   {
@@ -33,6 +34,10 @@ const router = createHashRouter([
       //   path: "/upload",
       //   element: <Upload />,
       // },
+      {
+        path: "/settings",
+        element: <Settings />
+      },
       {
         path: "*",
         element: <NotFound />

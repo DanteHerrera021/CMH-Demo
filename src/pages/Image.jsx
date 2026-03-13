@@ -1,6 +1,6 @@
 import { useLoaderData } from "react-router-dom";
 import { PageContainer } from "../components/layout/PageContainer";
-import ZoomImage from "../components/assets/zoomImage";
+import ZoomImage from "../components/assets/ZoomImage";
 import { FingerprintPattern, File } from "lucide-react";
 import Button from "../components/ui/Button";
 

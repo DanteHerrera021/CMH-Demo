@@ -13,7 +13,7 @@ export default function Navbar() {
             </Link>
           </div>
           <div>
-            <Link>
+            <Link to="/settings">
               <Settings
                 size={36}
                 strokeWidth="1.5"
