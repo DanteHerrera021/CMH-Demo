@@ -47,7 +47,7 @@ export default function Image() {
                     id="date"
                     type="date"
                     name="date"
-                    autoComplete="date"
+                    autoComplete="off"
                     className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
                   />
                 </div>
