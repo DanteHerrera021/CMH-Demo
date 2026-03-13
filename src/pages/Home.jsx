@@ -53,20 +53,24 @@ export default function Home() {
 
         <div className="pb-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {Object.values(images)
+            {Object.entries(images)
               .slice(0, 10)
-              .map((img, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg overflow-hidden hover:scale-105 transition-transform duration-200 cursor-pointer"
-                >
-                  <img
-                    src={img.default}
-                    className="w-full h-full object-cover aspect-square"
-                    alt={`Gallery image ${i + 1}`}
-                  />
-                </div>
-              ))}
+              .map(([path, img]) => {
+                const match = path.match(/img(\d+)\.jpg$/);
+                const id = match ? match[1] : null;
+
+                return (
+                  <Link to={`/image/${id}`} key={path}>
+                    <div className="rounded-lg overflow-hidden hover:scale-105 transition-transform duration-200 cursor-pointer">
+                      <img
+                        src={img.default}
+                        className="w-full h-full object-cover aspect-square"
+                        alt={`Gallery image ${id}`}
+                      />
+                    </div>
+                  </Link>
+                );
+              })}
           </div>
         </div>
       </div>
