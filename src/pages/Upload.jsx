@@ -112,7 +112,7 @@ export default function ImageUploaderMock() {
         <div className="w-full max-w-md">
           <label
             htmlFor="image-upload"
-            className="flex flex-col items-center justify-center rounded-3xl bg-ui-surface h-72 cursor-pointer border-2 border-dashed border-transparent hover:border-brand-primary transition"
+            className="px-4 py-10 flex flex-col items-center justify-center rounded-3xl bg-ui-surface cursor-pointer border-2 border-dashed border-transparent hover:border-brand-primary transition"
             onDragEnter={(e) => {
               e.preventDefault();
               // TODO: set isDragging = true
@@ -138,7 +138,7 @@ export default function ImageUploaderMock() {
               <Upload className="text-3xl" />
             </div>
 
-            <p className="text-3xl font-medium text-black mb-2">
+            <p className="text-3xl font-medium text-black mb-2 text-center">
               Drag & drop your images
             </p>
 
@@ -174,9 +174,9 @@ export default function ImageUploaderMock() {
             {mockImages.map((img) => (
               <div
                 key={img}
-                className="relative w-40 h-40 bg-[#d9d9d9] border border-gray-400 overflow-hidden"
+                className="relative w-40 h-40 bg-ui-muted border border-gray-400 overflow-hidden"
               >
-                <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                <div className="absolute inset-0 flex items-center justify-center text-white">
                   Image
                 </div>
 
@@ -194,16 +194,23 @@ export default function ImageUploaderMock() {
                   <X size={14} />
                 </button>
 
-                <div className="absolute bottom-2 left-2 right-2 flex gap-1 flex-wrap">
-                  <span className="bg-white text-[10px] px-2 py-0.5 rounded shadow">
-                    Tag1
-                  </span>
-                  <span className="bg-white text-[10px] px-2 py-0.5 rounded shadow">
-                    Tag2
-                  </span>
-                  <span className="bg-white text-[10px] px-2 py-0.5 rounded shadow">
-                    Tag3
-                  </span>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent pt-8 pb-2">
+                  <div className="overflow-x-auto scrollbar-hide px-2">
+                    <div className="flex w-max flex-nowrap gap-1 pr-1">
+                      <span className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow">
+                        Tag1
+                      </span>
+                      <span className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow">
+                        Tag2
+                      </span>
+                      <span className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow">
+                        Tag3
+                      </span>
+                      <span className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow">
+                        Tag4
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
