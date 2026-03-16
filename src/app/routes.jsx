@@ -4,7 +4,7 @@ import { createHashRouter, Navigate } from "react-router-dom";
 import Shell from "../components/layout/Shell";
 import Home from "../pages/Home";
 // import Library from "../pages/Library";
-// import Upload from "../pages/Upload";
+import Upload from "../pages/Upload";
 import Image, { imageLoader } from "../pages/Image";
 import NotFound from "../pages/NotFound";
 import Settings from "../pages/Settings";
@@ -30,10 +30,10 @@ const router = createHashRouter([
       //   path: "/library",
       //   element: <Library />,
       // },
-      // {
-      //   path: "/upload",
-      //   element: <Upload />,
-      // },
+      {
+        path: "/upload",
+        element: <Upload />
+      },
       {
         path: "/settings",
         element: <Settings />

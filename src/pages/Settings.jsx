@@ -6,7 +6,7 @@ export default function Settings() {
     <PageContainer>
       <div className="mt-6 flex flex-col md:flex-row md:justify-between md:align-center md:gap-4 gap-3 mb-6">
         <div>
-          <h1 className="text-3xl font-bold mb-1">Settings</h1>
+          <h1 className="text-4xl font-bold mb-1">Settings</h1>
           <p className="text-slate-500">
             Configure default metadata and tags for your media uploads.
           </p>

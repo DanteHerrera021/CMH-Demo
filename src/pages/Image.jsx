@@ -21,7 +21,7 @@ export default function Image() {
           </ZoomImage>
         </div>
         <div className="md:flex-1">
-          <h2 className="text-2xl font-semibold">Image Details</h2>
+          <h1 className="text-4xl font-bold mb-1">Image Details</h1>
           <div className="flex flex-row gap-4 mt-2">
             <div className="rounded bg-brand-primary py-1 px-3 flex items-center gap-2">
               <FingerprintPattern size={16} className="text-white" />

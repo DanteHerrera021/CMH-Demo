@@ -17,11 +17,13 @@ export default function Home() {
         </div>
 
         <div>
-          <Button
-            text="Upload Media"
-            rounded="sm"
-            className="bg-brand-primary text-white"
-          />
+          <Link to="/upload">
+            <Button
+              text="Upload Media"
+              rounded="sm"
+              className="bg-brand-primary text-white"
+            />
+          </Link>
         </div>
       </div>
       <div className="flex flex-col md:flex-row w-full justify-between gap-4 my-6">
