@@ -3,7 +3,7 @@ import { createHashRouter, Navigate } from "react-router-dom";
 
 import Shell from "../components/layout/Shell";
 import Home from "../pages/Home";
-// import Library from "../pages/Library";
+import Library from "../pages/Library";
 import Upload from "../pages/Upload";
 import Image, { imageLoader } from "../pages/Image";
 import NotFound from "../pages/NotFound";
@@ -26,10 +26,10 @@ const router = createHashRouter([
         element: <Image />,
         loader: imageLoader
       },
-      // {
-      //   path: "/library",
-      //   element: <Library />,
-      // },
+      {
+        path: "/library",
+        element: <Library />
+      },
       {
         path: "/upload",
         element: <Upload />

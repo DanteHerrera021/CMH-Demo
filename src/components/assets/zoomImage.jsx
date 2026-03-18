@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
-export default function ZoomImage({ src, alt = "", children }) {
+export default function ZoomImage({ detailsTo, src, alt = "", children }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
@@ -23,18 +27,26 @@ export default function ZoomImage({ src, alt = "", children }) {
             : "pointer-events-none opacity-0"
         }`}
       >
-        {/* wrapper defines the max viewing area */}
         <div
-          className={`flex items-center justify-center w-[90vw] h-[90vh] transition-all duration-200 ${
+          onClick={(e) => e.stopPropagation()}
+          className={`flex flex-col items-center transition-all duration-200 ${
             open ? "scale-100 opacity-100" : "scale-95 opacity-0"
           }`}
         >
           <img
             src={src}
             alt={alt}
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+            className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl shadow-2xl"
           />
+
+          {detailsTo && (
+            <Link
+              to={detailsTo}
+              className="mt-4 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white shadow"
+            >
+              View Details
+            </Link>
+          )}
         </div>
       </div>
     </>

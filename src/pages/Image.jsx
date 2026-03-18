@@ -90,6 +90,78 @@ export default function Image() {
 
               <div>
                 <label
+                  htmlFor="location"
+                  className="block text-sm font-medium text-ui-muted"
+                >
+                  Location
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="location"
+                    type="text"
+                    name="location"
+                    autoComplete="off"
+                    className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="industry"
+                  className="block text-sm font-medium text-ui-muted"
+                >
+                  Industry
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="industry"
+                    type="text"
+                    name="industry"
+                    autoComplete="off"
+                    className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="display-size"
+                  className="block text-sm font-medium text-ui-muted"
+                >
+                  Display Size
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="display-size"
+                    type="text"
+                    name="display-size"
+                    autoComplete="off"
+                    className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="booth-type"
+                  className="block text-sm font-medium text-ui-muted"
+                >
+                  Booth Type
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="booth-type"
+                    type="text"
+                    name="booth-type"
+                    autoComplete="off"
+                    className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
                   htmlFor="additional-tags"
                   className="block text-sm font-medium text-ui-muted"
                 >
@@ -106,7 +178,7 @@ export default function Image() {
                 </div>
               </div>
 
-              <div className="mt-3">
+              <div className="mt-3 mb-6">
                 <Button
                   text="Save Details"
                   rounded="sm"
