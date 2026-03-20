@@ -75,6 +75,11 @@ export default function Library() {
               No photos found.
             </div>
           )}
+          <div className="w-full flex justify-center">
+            <p className="inline text-sm text-black/60 py-6">
+              No more images to load.
+            </p>
+          </div>
         </main>
       </div>
     </div>
