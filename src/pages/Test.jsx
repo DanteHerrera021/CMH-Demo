@@ -1,6 +1,5 @@
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "../firebase/config";
-import { getAllMedia } from "../firebase/mediaApi";
 
 export default function Test() {
   return (
@@ -57,7 +56,7 @@ async function testReadMedia() {
   // console.log(mappedDocs)
 
   try {
-    const images = await getAllMedia();
+    // const images = await getAllMedia();
     console.log(images);
   } catch (e) {
     console.error(e);

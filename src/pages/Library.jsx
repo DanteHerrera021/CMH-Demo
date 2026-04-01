@@ -1,28 +1,95 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Funnel } from "lucide-react";
 import FilterSidebar from "../components/assets/FilterSidebar";
 import PhotoCard from "../components/assets/LibraryPhotoCard";
+import { libraryLoader } from "../loaders/libraryLoader";
+import { toastError } from "../utils/toastHandler";
+import { ToastContainer, Slide } from "react-toastify";
 
-const imageModules = import.meta.glob("../assets/imgs/temp/*.jpg", {
-  eager: true
-});
+function useIsVisible(ref) {
+  const [isIntersecting, setIntersecting] = useState(false);
 
-const photos = Object.values(imageModules).map((mod, index) => ({
-  id: index + 1,
-  src: mod.default,
-  alt: `Placeholder photo ${index + 1}`,
-  tags: ["Tag1", "Tag2", "Tag3"],
-  show: "Show Name",
-  company: "Company Name"
-}));
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) =>
+      setIntersecting(entry.isIntersecting)
+    );
+
+    if (ref.current) observer.observe(ref.current);
+
+    return () => observer.disconnect(); // Cleanup
+  }, [ref]);
+
+  return isIntersecting;
+}
 
 export default function Library() {
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const PAGE_SIZE = 20;
 
-  const photoItems = useMemo(() => photos, []);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [nextCursor, setNextCursor] = useState(null);
+
+  const intersectingDiv = useRef();
+  const isVisible = useIsVisible(intersectingDiv);
+
+  const didInitialLoad = useRef(false);
+
+  useEffect(() => {
+    if (didInitialLoad.current) return;
+    didInitialLoad.current = true;
+    loadMore();
+  }, []);
+
+  useEffect(() => {
+    if (images.length > 0 && isVisible && !loading && hasMore) {
+      loadMore();
+    }
+  }, [images.length, isVisible, loading, hasMore]);
+
+  async function loadMore() {
+    if (loading || !hasMore) return;
+
+    setLoading(true);
+
+    try {
+      const response = await libraryLoader(nextCursor, PAGE_SIZE);
+
+      setImages((prev) => {
+        const existingIds = new Set(prev.map((img) => img.id));
+
+        const newUnique = response.images.filter(
+          (img) => !existingIds.has(img.id)
+        );
+
+        return [...prev, ...newUnique];
+      });
+      setNextCursor(response.nextCursor);
+      setHasMore(response.images.length === PAGE_SIZE);
+    } catch (e) {
+      console.error(e);
+      toastError("Failed to load more images. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen">
+      <ToastContainer
+        position="bottom-right"
+        autoClose={5000}
+        hideProgressBar
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover
+        theme="light"
+        transition={Slide}
+      />
       <div className="md:grid md:grid-cols-[240px_1fr] lg:grid-cols-[260px_1fr]">
         {/* Mobile header */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/10 bg-white px-4 py-3 md:hidden">
@@ -65,21 +132,29 @@ export default function Library() {
           </div>
 
           <div className="columns-1 gap-5 sm:columns-2 xl:columns-3">
-            {photoItems.map((photo) => (
-              <PhotoCard key={photo.id} photo={photo} />
+            {images.map((image) => (
+              <PhotoCard key={image.id} image={image} />
             ))}
           </div>
 
-          {photoItems.length === 0 && (
+          {images.length === 0 && (
             <div className="rounded-lg border border-dashed border-black/20 p-10 text-center text-black/60">
               No photos found.
             </div>
           )}
-          <div className="w-full flex justify-center">
-            <p className="inline text-sm text-black/60 py-6">
-              No more images to load.
-            </p>
-          </div>
+          {hasMore && (
+            <div
+              ref={intersectingDiv}
+              className="w-full flex justify-center"
+            ></div>
+          )}
+          {!hasMore && (
+            <div className="w-full flex justify-center">
+              <p className="inline text-sm text-black/60 py-6">
+                No more images to load.
+              </p>
+            </div>
+          )}
         </main>
       </div>
     </div>

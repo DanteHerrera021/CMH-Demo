@@ -34,43 +34,16 @@ import { Upload, Pencil, X } from "lucide-react";
 import { PageContainer } from "../components/layout/PageContainer";
 import Button from "../components/ui/Button";
 import { useState } from "react";
-import { ToastContainer, Slide, toast } from "react-toastify";
+import { ToastContainer, Slide } from "react-toastify";
 import heic2any from "heic2any";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useNavigate } from "react-router-dom";
+import { toastError, toastSuccess } from "../utils/toastHandler";
 
 // -------------------------------------------
 // HELPER FUNCTIONS
 // -------------------------------------------
-
-function toastError(message) {
-  toast.error(message, {
-    position: "bottom-right",
-    autoClose: 5000,
-    hideProgressBar: true,
-    closeOnClick: true,
-    pauseOnHover: true,
-    draggable: true,
-    progress: undefined,
-    theme: "light",
-    transition: Slide
-  });
-}
-
-function toastSuccess(message) {
-  toast.success(message, {
-    position: "bottom-right",
-    autoClose: 5000,
-    hideProgressBar: true,
-    closeOnClick: true,
-    pauseOnHover: true,
-    draggable: true,
-    progress: undefined,
-    theme: "light",
-    transition: Slide
-  });
-}
 
 function addFiles(fileList) {
   const fileArray = [...fileList];

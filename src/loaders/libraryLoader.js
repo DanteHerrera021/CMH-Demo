@@ -1,11 +1,6 @@
-import { getAllMedia } from "../firebase/mediaApi";
+import { getMediaPage } from "../firebase/mediaApi";
 
-export async function libraryLoader() {
-    const images = await getAllMedia();
-
-    if (!images) {
-        throw new Response("No media found", { status: 404 });
-    }
-
-    return images;
+export async function libraryLoader(lastDoc = null, pageSize = 20) {
+    const response = await getMediaPage(lastDoc, pageSize);
+    return response;
 }
