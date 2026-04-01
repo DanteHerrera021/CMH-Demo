@@ -10,7 +10,7 @@ export function mapMediaDoc(docSnap) {
     width: data.width ?? null,
     height: data.height ?? null,
     tagIds: data.tagIds ?? [],
-    tagNames: data.tagNames ?? [],
+    tagSlugs: data.tagSlugs ?? [],
     createdAt: data.createdAt ?? null,
     updatedAt: data.updatedAt ?? null,
   };

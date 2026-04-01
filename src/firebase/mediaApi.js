@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "./config";
-import { mapMediaDoc } from "../mappers/mapMediaDoc";
+import { mapMediaDoc } from "../data/MapMediaDoc";
 
 export async function getMediaById(id) {
     const snap = await getDoc(doc(db, "media", id));

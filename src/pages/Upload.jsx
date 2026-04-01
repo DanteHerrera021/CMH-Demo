@@ -2,91 +2,28 @@
   /* 
 TODOs for real upload functionality:
 
-1. File selection
-- Handle input onChange
-- Read selected files from e.target.files
-- Convert FileList to array if needed
-- Merge with existing uploaded images state
-
-2. Drag and drop
-- Add onDragEnter handler
-- Add onDragOver handler
-- Add onDragLeave handler
-- Add onDrop handler
-- Prevent default browser behavior in drag handlers
-- Track isDragging state for dropzone styling
-- Read dropped files from e.dataTransfer.files
-
-3. Client-side validation
-- Validate that each file is actually an image
-- Check MIME type, not just file extension
-- Allow iPhone formats like HEIC/HEIF to pass initial validation if desired
-- Reject unsupported or suspicious files
-- Enforce max file size
-- Enforce max number of files
-- Show user-friendly error messages for rejected files
-
 4. Image preview
-- Generate preview URLs with URL.createObjectURL(file)
-- Render previews in uploaded image cards
-- Revoke object URLs when removed/unmounted to avoid memory leaks
+- Revoke object URLs when unmounted to avoid memory leaks
 
 5. Remove / edit image actions
-- Wire up remove button to delete image from local state
-- Decide what edit button should do
-- Possible future edit actions: crop, rotate, replace, retag
-
-6. Upload preparation
-- Decide whether uploads happen immediately or only on Confirm
-- Prepare FormData or presigned S3 upload flow
-- Track upload status per image: idle, uploading, success, error
+- Add redirect to edit page for editing metadata and tags
 
 7. Backend validation
 - Re-validate everything on the server
-- Check MIME type and file signature / magic bytes
-- Do not trust frontend accept="image/*"
-- Reject renamed non-image files
 
 8. iPhone compatibility
-- Handle HEIC / HEIF uploads
-- Convert HEIC/HEIF to JPEG or WebP before display if needed
 - Fix EXIF orientation so photos do not appear rotated
-
-9. Image processing
-- Resize large images before or after upload
-- Compress images for web performance
-- Generate thumbnails
-- Optionally convert all uploads to one display format like JPEG or WebP
 
 10. AWS S3 integration
 - Use unique file names
-- Set correct Content-Type metadata
-- Decide S3 key structure, for example userId/uploadId/fileName
-- Prefer presigned URLs for direct upload from frontend
 - Handle failed uploads and retries
-
-11. Database / persistence
-- Save uploaded image URL(s)
-- Save S3 key(s)
-- Save tags / metadata if needed
-- Keep display order if image ordering matters
-
-12. Accessibility
-- Make upload area keyboard accessible
-- Add clear labels / instructions
-- Add alt text strategy for uploaded images if needed
-- Ensure buttons have accessible names
 
 13. UX polish
 - Show loading states
 - Show upload progress
-- Show empty state
-- Show validation errors near the uploader
 - Disable Confirm until requirements are met
-- Add success / failure feedback after upload
 
 14. Security
-- Sanitize or disallow risky formats like SVG unless intentionally supported
 - Enforce auth/permissions for uploads
 - Restrict who can access uploaded files
 - Consider virus/malware scanning depending on app requirements
@@ -96,12 +33,281 @@ TODOs for real upload functionality:
 import { Upload, Pencil, X } from "lucide-react";
 import { PageContainer } from "../components/layout/PageContainer";
 import Button from "../components/ui/Button";
+import { useState } from "react";
+import { ToastContainer, Slide, toast } from "react-toastify";
+import heic2any from "heic2any";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase/config";
 
-export default function ImageUploaderMock() {
-  const mockImages = [1, 2, 3];
+// -------------------------------------------
+// HELPER FUNCTIONS
+// -------------------------------------------
+
+function toastError(message) {
+  toast.error(message, {
+    position: "bottom-right",
+    autoClose: 5000,
+    hideProgressBar: true,
+    closeOnClick: true,
+    pauseOnHover: true,
+    draggable: true,
+    progress: undefined,
+    theme: "light",
+    transition: Slide
+  });
+}
+
+function addFiles(fileList) {
+  const fileArray = [...fileList];
+
+  let imgList = [];
+
+  fileArray.forEach((file) => {
+    if (imageValidate(file).valid === false) {
+      toastError(`Error uploading ${file.name}: ${imageValidate(file).error}`);
+    } else {
+      imgList.push({
+        localId: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        status: "idle", // idle | uploading | success | error
+        error: "",
+        tagIds: []
+      });
+    }
+  });
+  return imgList;
+}
+
+function imageValidate(file) {
+  // Basic client-side validation
+  const ALLOWED_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif"
+  ];
+
+  if (!file.type.startsWith("image/")) {
+    return { valid: false, error: "File is not an image." };
+  } else if (!ALLOWED_TYPES.includes(file.type)) {
+    return { valid: false, error: "File type is not allowed." };
+  } else {
+    if (file.size > 20000000) {
+      // 20MB limit
+      return { valid: false, error: "File size exceeds 20MB limit." };
+    }
+
+    return { valid: true, file: file, error: null };
+  }
+}
+
+async function prepareFileForUpload(file) {
+  if (file.type !== "image/heic" && file.type !== "image/heif") {
+    return file;
+  }
+
+  try {
+    const convertedBlob = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.8
+    });
+
+    const finalBlob = Array.isArray(convertedBlob)
+      ? convertedBlob[0]
+      : convertedBlob;
+
+    const convertedFile = new File(
+      [finalBlob],
+      file.name.replace(/\.(heic|heif)$/i, ".jpg"),
+      { type: "image/jpeg" }
+    );
+
+    return convertedFile;
+  } catch (err) {
+    console.error("HEIC conversion error:", err);
+    throw new Error("Failed to convert HEIC image.");
+  }
+}
+
+function getImageDimensions(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      resolve({ width: img.width, height: img.height });
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    img.onerror = () => {
+      reject(new Error("Failed to read image dimensions."));
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+// -------------------------------------------
+// MAIN COMPONENT
+// -------------------------------------------
+
+export default function ImageUpload() {
+  const [images, setImages] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+
+  function removeFile(localId) {
+    URL.revokeObjectURL(
+      images.find((img) => img.localId === localId)?.previewUrl
+    );
+    setImages((prevImages) =>
+      prevImages.filter((img) => img.localId !== localId)
+    );
+  }
+
+  // TODO: DISABLE CONFIRM BUTTON WHILE UPLOADING TO PREVENT DUPLICATE UPLOADS
+  // TODO: ADD RETRY LOGIC FOR FAILED UPLOADS, EITHER AUTOMATICALLY OR VIA A RETRY BUTTON
+  // TODO: IF ALL IMAGES UPLOADED SUCCESSFULLY, REDIRECT TO MEDIA LIBRARY
+  async function handleConfirmUpload() {
+    console.info("UPLOADING IMAGES");
+
+    for (const image of images) {
+      setImages((prevImages) =>
+        prevImages.map((img) =>
+          img.localId === image.localId
+            ? { ...img, status: "uploading", error: "" }
+            : img
+        )
+      );
+
+      let preparedFile;
+      try {
+        preparedFile = await prepareFileForUpload(image.file);
+      } catch (err) {
+        toastError(`Error preparing ${image.file.name}: ${err.message}`);
+        setImages((prevImages) =>
+          prevImages.map((img) =>
+            img.localId === image.localId
+              ? { ...img, status: "error", error: err.message }
+              : img
+          )
+        );
+        return;
+      }
+
+      // TODO: Replace with env variable or config
+      const response = await fetch(
+        "https://presignupload-mhimmq7ewq-uc.a.run.app",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            filename: preparedFile.name,
+            contentType: preparedFile.type
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        toastError(`Upload failed for ${image.file.name}: ${errorData.error}`);
+        setImages((prevImages) =>
+          prevImages.map((img) =>
+            img.localId === image.localId
+              ? { ...img, status: "error", error: errorData.error }
+              : img
+          )
+        );
+        return;
+      }
+
+      const { uploadUrl, s3Key, publicUrl } = await response.json();
+
+      try {
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": preparedFile.type
+          },
+          body: preparedFile
+        });
+      } catch (err) {
+        toastError(`Upload failed for ${image.file.name}: ${err.message}`);
+        setImages((prevImages) =>
+          prevImages.map((img) =>
+            img.localId === image.localId
+              ? { ...img, status: "error", error: err.message }
+              : img
+          )
+        );
+      }
+
+      // get width and height of the image for metadata
+
+      const { width, height } = await getImageDimensions(preparedFile);
+
+      // Save metadata to Firestore
+      try {
+        await addDoc(collection(db, "media"), {
+          title: preparedFile.name.replace(/\.[^/.]+$/, ""),
+          filename: preparedFile.name,
+          contentType: preparedFile.type,
+          s3Key: s3Key,
+          url: publicUrl,
+          width: width,
+          height: height,
+          tagIds: [],
+          tagSlugs: [],
+          createdByRole: "admin", // Replace with actual user role if available
+          createdAt: serverTimestamp(),
+          updatedByRole: "admin", // Replace with actual user role if available
+          updatedAt: serverTimestamp()
+        });
+      } catch (err) {
+        toastError(
+          `Failed to save metadata for ${image.file.name}: ${err.message}`
+        );
+        setImages((prevImages) =>
+          prevImages.map((img) =>
+            img.localId === image.localId
+              ? { ...img, status: "error", error: err.message }
+              : img
+          )
+        );
+      }
+
+      setImages((prevImages) =>
+        prevImages.map((img) =>
+          img.localId === image.localId
+            ? { ...img, status: "success", error: "" }
+            : img
+        )
+      );
+      console.info("IMAGE UPLOADED SUCCESSFULLY");
+    }
+    console.info("ALL IMAGES PROCESSED");
+  }
 
   return (
     <PageContainer>
+      <ToastContainer
+        position="bottom-right"
+        autoClose={5000}
+        hideProgressBar
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover
+        theme="light"
+        transition={Slide}
+      />
       <div className="flex flex-col items-center py-6">
         <div className="mb-10 text-left w-full">
           <h1 className="text-4xl font-bold mb-1">Upload Your Images</h1>
@@ -115,23 +321,22 @@ export default function ImageUploaderMock() {
             className="px-4 py-10 flex flex-col items-center justify-center rounded-3xl bg-ui-surface cursor-pointer border-2 border-dashed border-transparent hover:border-brand-primary transition"
             onDragEnter={(e) => {
               e.preventDefault();
-              // TODO: set isDragging = true
+              setIsDragging(true);
             }}
             onDragOver={(e) => {
               e.preventDefault();
-              // TODO: keep drop enabled
             }}
             onDragLeave={(e) => {
               e.preventDefault();
-              // TODO: set isDragging = false when leaving dropzone
+              setIsDragging(false);
             }}
             onDrop={(e) => {
               e.preventDefault();
-              // TODO: set isDragging = false
-              // TODO: read files from e.dataTransfer.files
-              // TODO: validate files
-              // TODO: create preview URLs
-              // TODO: store files in component state
+              setIsDragging(false);
+              setImages((prevImages) => [
+                ...prevImages,
+                ...addFiles(e.dataTransfer.files)
+              ]);
             }}
           >
             <div className="w-16 h-16 rounded-full border border-black flex items-center justify-center mb-4">
@@ -155,73 +360,82 @@ export default function ImageUploaderMock() {
             accept="image/*"
             multiple
             className="hidden"
-            onChange={() => {
-              // TODO: read selected files from input
-              // TODO: validate files
-              // TODO: create preview URLs
-              // TODO: store files in component state
+            onChange={(e) => {
+              setImages((prevImages) => [
+                ...prevImages,
+                ...addFiles(e.target.files)
+              ]);
             }}
           />
         </div>
 
-        {/* Uploaded Images */}
+        {/* Selected Images */}
         <div className="mt-10 w-full max-w-3xl">
           <h2 className="text-center text-xl font-medium mb-6">
-            Uploaded Images
+            Selected Images
           </h2>
 
           <div className="flex justify-center gap-8 flex-wrap">
-            {mockImages.map((img) => (
-              <div
-                key={img}
-                className="relative w-40 h-40 bg-ui-muted border border-gray-400 overflow-hidden"
-              >
-                <div className="absolute inset-0 flex items-center justify-center text-white">
-                  Image
-                </div>
-
-                <button
-                  type="button"
-                  className="absolute top-2 left-2 w-8 h-8 rounded-full bg-brand-primary text-white flex items-center justify-center shadow"
+            {images.length === 0 ? (
+              <p className="text-gray-500">No images selected.</p>
+            ) : (
+              images.map((img) => (
+                <div
+                  key={img.localId}
+                  className="relative w-40 h-40 bg-ui-muted border border-gray-400 overflow-hidden"
                 >
-                  <Pencil size={14} />
-                </button>
+                  <div className="absolute inset-0 flex items-center justify-center text-white">
+                    <img
+                      src={img.previewUrl}
+                      alt={img.file.name}
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
 
-                <button
-                  type="button"
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-brand-danger text-white flex items-center justify-center shadow"
-                >
-                  <X size={14} />
-                </button>
+                  <button
+                    type="button"
+                    className="absolute top-2 left-2 w-8 h-8 rounded-full bg-brand-primary text-white flex items-center justify-center shadow"
+                  >
+                    <Pencil size={14} />
+                  </button>
 
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent pt-8 pb-2">
-                  <div className="overflow-x-auto scrollbar-hide px-2">
-                    <div className="flex w-max flex-nowrap gap-1 pr-1">
-                      <span className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow">
-                        Tag1
-                      </span>
-                      <span className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow">
-                        Tag2
-                      </span>
-                      <span className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow">
-                        Tag3
-                      </span>
-                      <span className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow">
-                        Tag4
-                      </span>
+                  <button
+                    type="button"
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-brand-danger text-white flex items-center justify-center shadow"
+                    onClick={() => removeFile(img.localId)}
+                  >
+                    <X size={14} />
+                  </button>
+
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent pt-8 pb-2">
+                    <div className="overflow-x-auto scrollbar-hide px-2">
+                      <div className="flex w-max flex-nowrap gap-1 pr-1">
+                        {img.tagIds.map((tagId) => (
+                          <span
+                            className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow"
+                            key={tagId}
+                          >
+                            {tagId}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         {/* Confirm button */}
-        <Button
-          text="Confirm"
-          className="mt-10 bg-brand-primary text-white px-16 py-3 shadow"
-        ></Button>
+
+        {images.length > 0 && (
+          <Button
+            text="Confirm"
+            className="mt-10 bg-brand-primary text-white px-16 py-3 shadow"
+            onClick={handleConfirmUpload}
+          ></Button>
+        )}
       </div>
     </PageContainer>
   );

@@ -8,6 +8,7 @@ import Upload from "../pages/Upload";
 import Image, { imageLoader } from "../pages/Image";
 import NotFound from "../pages/NotFound";
 import Settings from "../pages/Settings";
+import Test from "../pages/Test";
 
 const router = createHashRouter([
   {
@@ -37,6 +38,10 @@ const router = createHashRouter([
       {
         path: "/settings",
         element: <Settings />
+      },
+      {
+        path: "/test",
+        element: <Test />
       },
       {
         path: "*",
