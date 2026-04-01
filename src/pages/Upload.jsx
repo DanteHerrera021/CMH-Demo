@@ -38,6 +38,7 @@ import { ToastContainer, Slide, toast } from "react-toastify";
 import heic2any from "heic2any";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { useNavigate } from "react-router-dom";
 
 // -------------------------------------------
 // HELPER FUNCTIONS
@@ -45,6 +46,20 @@ import { db } from "../firebase/config";
 
 function toastError(message) {
   toast.error(message, {
+    position: "bottom-right",
+    autoClose: 5000,
+    hideProgressBar: true,
+    closeOnClick: true,
+    pauseOnHover: true,
+    draggable: true,
+    progress: undefined,
+    theme: "light",
+    transition: Slide
+  });
+}
+
+function toastSuccess(message) {
+  toast.success(message, {
     position: "bottom-right",
     autoClose: 5000,
     hideProgressBar: true,
@@ -89,9 +104,15 @@ function imageValidate(file) {
     "image/heif"
   ];
 
-  if (!file.type.startsWith("image/")) {
+  const fileName = file.name.toLowerCase();
+  const hasHeicExtension =
+    fileName.endsWith(".heic") || fileName.endsWith(".heif");
+
+  const effectiveType = file.type || (hasHeicExtension ? "image/heic" : "");
+
+  if (!effectiveType.startsWith("image/")) {
     return { valid: false, error: "File is not an image." };
-  } else if (!ALLOWED_TYPES.includes(file.type)) {
+  } else if (!ALLOWED_TYPES.includes(effectiveType)) {
     return { valid: false, error: "File type is not allowed." };
   } else {
     if (file.size > 20000000) {
@@ -104,7 +125,13 @@ function imageValidate(file) {
 }
 
 async function prepareFileForUpload(file) {
-  if (file.type !== "image/heic" && file.type !== "image/heif") {
+  const fileName = file.name.toLowerCase();
+  const hasHeicExtension =
+    fileName.endsWith(".heic") || fileName.endsWith(".heif");
+
+  const effectiveType = file.type || (hasHeicExtension ? "image/heic" : "");
+
+  if (effectiveType !== "image/heic" && effectiveType !== "image/heif") {
     return file;
   }
 
@@ -158,6 +185,10 @@ function getImageDimensions(file) {
 export default function ImageUpload() {
   const [images, setImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isError, setIsError] = useState(false);
+
+  const navigate = useNavigate();
 
   function removeFile(localId) {
     URL.revokeObjectURL(
@@ -173,6 +204,9 @@ export default function ImageUpload() {
   // TODO: IF ALL IMAGES UPLOADED SUCCESSFULLY, REDIRECT TO MEDIA LIBRARY
   async function handleConfirmUpload() {
     console.info("UPLOADING IMAGES");
+
+    setIsUploading(true);
+    setIsError(false);
 
     for (const image of images) {
       setImages((prevImages) =>
@@ -195,6 +229,7 @@ export default function ImageUpload() {
               : img
           )
         );
+        setIsError(true);
         return;
       }
 
@@ -223,6 +258,7 @@ export default function ImageUpload() {
               : img
           )
         );
+        setIsError(true);
         return;
       }
 
@@ -245,6 +281,7 @@ export default function ImageUpload() {
               : img
           )
         );
+        setIsError(true);
       }
 
       // get width and height of the image for metadata
@@ -279,6 +316,7 @@ export default function ImageUpload() {
               : img
           )
         );
+        setIsError(true);
       }
 
       setImages((prevImages) =>
@@ -289,8 +327,20 @@ export default function ImageUpload() {
         )
       );
       console.info("IMAGE UPLOADED SUCCESSFULLY");
+
+      removeFile(image.localId);
     }
+
+    setIsUploading(false);
+
     console.info("ALL IMAGES PROCESSED");
+
+    if (!isError) {
+      toastSuccess("All images uploaded successfully!");
+      setTimeout(() => {
+        navigate("/library");
+      }, 800);
+    }
   }
 
   return (
@@ -432,7 +482,8 @@ export default function ImageUpload() {
         {images.length > 0 && (
           <Button
             text="Confirm"
-            className="mt-10 bg-brand-primary text-white px-16 py-3 shadow"
+            className="mt-10 bg-brand-primary text-white px-16 py-3 shadow hover:bg-brand-primary-dark transition disabled:cursor-not-allowed disabled:shadow-none"
+            disabled={isUploading}
             onClick={handleConfirmUpload}
           ></Button>
         )}
