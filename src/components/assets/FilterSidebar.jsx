@@ -1,4 +1,13 @@
 import { CalendarDays, Search, X, RotateCcw, Filter } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getAllCategories, autocompleteTags } from "../../firebase/tagsApi";
+import { toastError } from "../../utils/toastHandler";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxOption,
+  ComboboxOptions
+} from "@headlessui/react";
 
 function TagPill({ children, onRemove }) {
   return (
@@ -13,28 +22,108 @@ function TagPill({ children, onRemove }) {
   );
 }
 
-function FilterField({ id, label, placeholder }) {
+function FilterField({ id, label, placeholder, onSelect }) {
+  const [inputValue, setInputValue] = useState("");
+  const [debounceTimeout, setDebounceTimeout] = useState(null);
+
+  const [suggestedTags, setSuggestedTags] = useState([]);
+
+  // JUST FOR HEADLESSUI COMBOBOX. NOT USED FOR FILTERING LOGIC
+  const [selectedTag, setSelectedTag] = useState(null);
+
+  useEffect(() => {
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+
+    if (inputValue.length >= 2) {
+      const timeout = setTimeout(async () => {
+        try {
+          const tagList = await autocompleteTags(label, inputValue, 8);
+
+          setSuggestedTags(tagList);
+        } catch (err) {
+          console.error("Error fetching tags:", err);
+        }
+      }, 200);
+      setDebounceTimeout(timeout);
+    } else {
+      setSuggestedTags([]);
+    }
+
+    return () => {
+      if (debounceTimeout) clearTimeout(debounceTimeout);
+    };
+  }, [inputValue, label]);
+
+  function handleInputChange(e) {
+    setInputValue(e);
+  }
+
   return (
     <section className="rounded-xl border border-ui-border p-4">
       <label htmlFor={id} className="block text-sm font-medium text-ui-text">
         {label}
       </label>
       <div className="mt-2">
-        <input
-          id={id}
-          type="text"
-          name={id}
-          autoComplete="off"
-          placeholder={placeholder}
-          className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
-        />
+        <Combobox
+          value={selectedTag}
+          onChange={(tag) => {
+            onSelect(tag);
+            setSelectedTag(null);
+          }}
+        >
+          <div className="relative">
+            <ComboboxInput
+              id={id}
+              name={id}
+              autoComplete="off"
+              placeholder={placeholder}
+              displayValue={(tag) => tag?.name}
+              onChange={(event) => handleInputChange(event.target.value)}
+              className="block w-full rounded-md border border-ui-border bg-ui-surface px-3 py-2 text-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+            />
+
+            <ComboboxOptions className="absolute left-0 top-full z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-ui-border bg-ui-surface shadow-lg empty:invisible">
+              {suggestedTags.map((tag) => (
+                <ComboboxOption
+                  key={tag.id}
+                  value={tag}
+                  className="cursor-pointer px-3 py-2 text-sm data-focus:bg-brand-primary/10"
+                >
+                  {tag.name}
+                </ComboboxOption>
+              ))}
+            </ComboboxOptions>
+          </div>
+        </Combobox>
       </div>
     </section>
   );
 }
 
-export default function FilterSidebar({ mobile = false, onClose }) {
-  const activeFilters = ["Tag1", "Tag2"];
+export default function FilterSidebar({
+  mobile = false,
+  onClose,
+  selectedTags = [],
+  onTagSelect,
+  onTagRemove
+}) {
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categoryDocs = await getAllCategories();
+        setCategories(categoryDocs);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        toastError("Failed to load tag categories. Please try again later.");
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   return (
     <div className="flex h-full flex-col bg-ui-surface">
@@ -66,7 +155,8 @@ export default function FilterSidebar({ mobile = false, onClose }) {
           </div>
         </div>
 
-        <div className="mt-4">
+        {/* TODO: ADD GLOBAL SEARCH INPUT */}
+        {/* <div className="mt-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/60" />
             <input
@@ -75,7 +165,7 @@ export default function FilterSidebar({ mobile = false, onClose }) {
               className="block w-full rounded-md bg-ui-surface px-3 pl-11 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
             />
           </div>
-        </div>
+        </div> */}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
@@ -94,11 +184,11 @@ export default function FilterSidebar({ mobile = false, onClose }) {
             </button>
           </div>
 
-          {activeFilters.length > 0 ? (
+          {selectedTags.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {activeFilters.map((filter) => (
-                <TagPill key={filter} onRemove={() => {}}>
-                  {filter}
+              {selectedTags.map((tag) => (
+                <TagPill key={tag.id} onRemove={() => onTagRemove(tag.id)}>
+                  {tag.name}
                 </TagPill>
               ))}
             </div>
@@ -168,23 +258,15 @@ export default function FilterSidebar({ mobile = false, onClose }) {
               Filter by Tags
             </h3>
             <div className="space-y-4">
-              <FilterField
-                id="show-name"
-                label="Show Name"
-                placeholder="Search show names"
-              />
-
-              <FilterField
-                id="company-name"
-                label="Company Name"
-                placeholder="Search companies"
-              />
-
-              <FilterField
-                id="additional-tags"
-                label="Additional Tags"
-                placeholder="Search additional tags"
-              />
+              {categories.map((category) => (
+                <FilterField
+                  key={category.id}
+                  id={`tag-${category.id}`}
+                  label={category.name}
+                  placeholder={`Search ${category.name}`}
+                  onSelect={(tag) => onTagSelect(tag)}
+                />
+              ))}
             </div>
           </div>
         </div>

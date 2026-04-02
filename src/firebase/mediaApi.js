@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, startAfter, startAt } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, startAfter, startAt, where } from "firebase/firestore";
 import { db } from "./config";
 import { mapMediaDoc } from "../maps/MapMediaDoc";
 
@@ -8,10 +8,11 @@ export async function getMediaById(id) {
     return mapMediaDoc(snap);
 }
 
-export async function getMediaPage(lastDoc = null, pageSize = 20) {
+export async function getMediaPage(lastDoc = null, pageSize = 20, tags = []) {
     let q = query(
         collection(db, "media"),
         orderBy("createdAt", "desc"),
+        ...(tags.length > 0 ? [where("tagIds", "array-contains-any", tags)] : []),
         limit(pageSize)
     );
 

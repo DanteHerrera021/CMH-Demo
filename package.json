@@ -14,6 +14,7 @@
     "deploy:clean": "rimraf dist && npm run deploy"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
     "firebase": "^12.11.0",
     "heic2any": "^0.0.4",
     "lucide-react": "^0.576.0",

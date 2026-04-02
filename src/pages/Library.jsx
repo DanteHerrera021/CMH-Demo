@@ -25,6 +25,12 @@ function useIsVisible(ref) {
 export default function Library() {
   const PAGE_SIZE = 20;
 
+  const [selectedTags, setSelectedTags] = useState([]);
+
+  // TODO: add date filtering options in the future
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -36,6 +42,29 @@ export default function Library() {
 
   const didInitialLoad = useRef(false);
 
+  function handleAddTag(tag) {
+    setSelectedTags((prev) => {
+      if (prev.some((t) => t.id === tag.id)) return prev;
+      return [...prev, tag];
+    });
+  }
+
+  function handleRemoveTag(tagId) {
+    setSelectedTags((prev) => prev.filter((tag) => tag.id !== tagId));
+  }
+
+  useEffect(() => {
+    async function resetAndReload() {
+      setImages([]);
+      setNextCursor(null);
+      setHasMore(true);
+
+      await loadMore(selectedTags, true);
+    }
+
+    resetAndReload();
+  }, [selectedTags]);
+
   useEffect(() => {
     if (didInitialLoad.current) return;
     didInitialLoad.current = true;
@@ -44,27 +73,38 @@ export default function Library() {
 
   useEffect(() => {
     if (images.length > 0 && isVisible && !loading && hasMore) {
-      loadMore();
+      loadMore(selectedTags);
     }
   }, [images.length, isVisible, loading, hasMore]);
 
-  async function loadMore() {
-    if (loading || !hasMore) return;
+  async function loadMore(tags = [], reset = false) {
+    if (loading || (!hasMore && !reset)) return;
+
+    const tagIds = tags.map((tag) => {
+      if (typeof tag === "object" && tag.id) return tag.id;
+      return tag;
+    });
 
     setLoading(true);
 
     try {
-      const response = await libraryLoader(nextCursor, PAGE_SIZE);
+      const response = await libraryLoader(
+        reset ? null : nextCursor,
+        PAGE_SIZE,
+        tagIds
+      );
 
       setImages((prev) => {
-        const existingIds = new Set(prev.map((img) => img.id));
+        if (reset) return response.images;
 
+        const existingIds = new Set(prev.map((img) => img.id));
         const newUnique = response.images.filter(
           (img) => !existingIds.has(img.id)
         );
 
         return [...prev, ...newUnique];
       });
+
       setNextCursor(response.nextCursor);
       setHasMore(response.images.length === PAGE_SIZE);
     } catch (e) {
@@ -109,7 +149,11 @@ export default function Library() {
 
         {/* Desktop sidebar */}
         <aside className="hidden min-h-screen md:block md:shadow-lg">
-          <FilterSidebar />
+          <FilterSidebar
+            selectedTags={selectedTags}
+            onTagSelect={handleAddTag}
+            onTagRemove={handleRemoveTag}
+          />
         </aside>
 
         {/* Mobile drawer */}
@@ -120,7 +164,13 @@ export default function Library() {
               onClick={() => setFiltersOpen(false)}
             />
             <aside className="fixed inset-y-0 left-0 z-50 w-[88vw] max-w-[320px] border-r border-black/10 bg-[#f3f3f3] md:hidden">
-              <FilterSidebar mobile onClose={() => setFiltersOpen(false)} />
+              <FilterSidebar
+                mobile
+                onClose={() => setFiltersOpen(false)}
+                selectedTags={selectedTags}
+                onTagSelect={handleAddTag}
+                onTagRemove={handleRemoveTag}
+              />
             </aside>
           </>
         )}
@@ -139,7 +189,17 @@ export default function Library() {
 
           {images.length === 0 && (
             <div className="rounded-lg border border-dashed border-black/20 p-10 text-center text-black/60">
-              No photos found.
+              No photos found. Try adjusting or{" "}
+              <button
+                onClick={() => {
+                  setSelectedTags([]);
+                  setStartDate(null);
+                  setEndDate(null);
+                }}
+                className="underline hover:text-black/80"
+              >
+                clearing all filters
+              </button>
             </div>
           )}
           {hasMore && (

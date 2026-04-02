@@ -26,8 +26,10 @@ export default function PhotoCard({ image }) {
                   key={`${image.id}-${tag}`}
                   className="inline-flex items-center rounded-sm bg-white/85 px-2 py-1 text-xs text-black"
                 >
-                  {tag.split("-").join(" ").charAt(0).toUpperCase() +
-                    tag.slice(1).split("-").join(" ")}
+                  {tag
+                    .split("-")
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ")}
                 </span>
               ))}
           </div>
