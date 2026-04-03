@@ -14,19 +14,9 @@ TODOs for real upload functionality:
 8. iPhone compatibility
 - Fix EXIF orientation so photos do not appear rotated
 
-10. AWS S3 integration
-- Use unique file names
-- Handle failed uploads and retries
-
-13. UX polish
-- Show loading states
-- Show upload progress
-- Disable Confirm until requirements are met
-
 14. Security
 - Enforce auth/permissions for uploads
 - Restrict who can access uploaded files
-- Consider virus/malware scanning depending on app requirements
 */
 }
 
@@ -171,9 +161,6 @@ export default function ImageUpload() {
     );
   }
 
-  // TODO: DISABLE CONFIRM BUTTON WHILE UPLOADING TO PREVENT DUPLICATE UPLOADS
-  // TODO: ADD RETRY LOGIC FOR FAILED UPLOADS, EITHER AUTOMATICALLY OR VIA A RETRY BUTTON
-  // TODO: IF ALL IMAGES UPLOADED SUCCESSFULLY, REDIRECT TO MEDIA LIBRARY
   async function handleConfirmUpload() {
     console.info("UPLOADING IMAGES");
 
@@ -205,7 +192,6 @@ export default function ImageUpload() {
         return;
       }
 
-      // TODO: Replace with env variable or config
       const response = await fetch(
         "https://presignupload-mhimmq7ewq-uc.a.run.app",
         {
