@@ -227,7 +227,7 @@ export default function Image() {
 
                 <div className="flex flex-row justify-between">
                   <Button
-                    text={"Download Image"}
+                    text={"Download"}
                     rounded="sm"
                     className="bg-brand-primary text-white"
                     onClick={(e) => {
@@ -236,7 +236,7 @@ export default function Image() {
                     }}
                   />
                   <Button
-                    text={"Delete Image"}
+                    text={"Delete"}
                     rounded="sm"
                     className="bg-brand-danger text-white"
                     onClick={(e) => {
