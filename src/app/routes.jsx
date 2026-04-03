@@ -5,43 +5,50 @@ import Shell from "../components/layout/Shell";
 import Home from "../pages/Home";
 import Library from "../pages/Library";
 import Upload from "../pages/Upload";
-import Image, { imageLoader } from "../pages/Image";
+import Image from "../pages/Image";
 import NotFound from "../pages/NotFound";
 import Settings from "../pages/Settings";
-import Test from "../pages/Test";
+import { imageLoader } from "../loaders/imageLoader";
+import ProtectedRoute from "../components/layout/ProtectedRoute";
+import Login from "../pages/Login";
 
 const router = createHashRouter([
-  {
-    path: "/",
-    element: <Navigate to="/home" replace />
-  },
   {
     element: <Shell />,
     children: [
       {
-        path: "/home",
-        element: <Home />
+        path: "/login",
+        element: <Login />
       },
       {
-        path: "/image/:id",
-        element: <Image />,
-        loader: imageLoader
-      },
-      {
-        path: "/library",
-        element: <Library />
-      },
-      {
-        path: "/upload",
-        element: <Upload />
-      },
-      {
-        path: "/settings",
-        element: <Settings />
-      },
-      {
-        path: "/test",
-        element: <Test />
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "/",
+            element: <Navigate to="/home" replace />
+          },
+          {
+            path: "/home",
+            element: <Home />
+          },
+          {
+            path: "/image/:id",
+            element: <Image />,
+            loader: imageLoader
+          },
+          {
+            path: "/library",
+            element: <Library />
+          },
+          {
+            path: "/upload",
+            element: <Upload />
+          },
+          {
+            path: "/settings",
+            element: <Settings />
+          }
+        ]
       },
       {
         path: "*",

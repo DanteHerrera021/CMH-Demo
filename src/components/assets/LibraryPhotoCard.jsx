@@ -7,7 +7,7 @@ export default function PhotoCard({ image }) {
         <ZoomImage
           src={image.url}
           alt={image.title}
-          detailsTo={`/photos/${image.id}`}
+          detailsTo={`/image/${image.id}`}
         >
           <img
             src={image.url}

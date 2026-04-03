@@ -7,6 +7,13 @@ const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const crypto = require("node:crypto");
 
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { DeleteObjectsCommand } = require("@aws-sdk/client-s3");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+const db = admin.firestore();
+
 setGlobalOptions({ maxInstances: 10 });
 
 const awsAccessKeyId = defineSecret("AWS_ACCESS_KEY_ID");
@@ -86,6 +93,75 @@ exports.presignUpload = onRequest(
     } catch (error) {
       logger.error("presignUpload error", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
+    }
+  }
+);
+
+exports.deleteMedia = onCall(
+  {
+    region: "us-central1",
+    secrets: [awsAccessKeyId, awsSecretAccessKey],
+  },
+  async (request) => {
+    // 🔐 Require login
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const { mediaId } = request.data || {};
+
+    if (!mediaId) {
+      throw new HttpsError("invalid-argument", "Missing mediaId.");
+    }
+
+    try {
+      const ref = db.collection("media").doc(mediaId);
+      const snap = await ref.get();
+
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Image not found.");
+      }
+
+      const data = snap.data();
+
+      // Collect S3 keys (matches your structure)
+      const keys = [
+        data.s3Key,
+        data.thumbnailKey,
+        data.webKey,
+        data.originalKey,
+      ].filter(Boolean);
+
+      if (keys.length === 0) {
+        throw new HttpsError("failed-precondition", "No S3 keys found.");
+      }
+
+      // Create S3 client (same pattern as your upload function)
+      const s3 = new S3Client({
+        region: AWS_REGION,
+        credentials: {
+          accessKeyId: awsAccessKeyId.value(),
+          secretAccessKey: awsSecretAccessKey.value(),
+        },
+      });
+
+      // 🪣 Delete all objects
+      await s3.send(
+        new DeleteObjectsCommand({
+          Bucket: AWS_BUCKET_NAME,
+          Delete: {
+            Objects: keys.map((Key) => ({ Key })),
+          },
+        })
+      );
+
+      // 🧹 Delete Firestore doc
+      await ref.delete();
+
+      return { success: true };
+    } catch (error) {
+      logger.error("deleteMedia error", error);
+      throw new HttpsError("internal", "Failed to delete image.");
     }
   }
 );

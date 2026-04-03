@@ -2,12 +2,7 @@ import { CalendarDays, Search, X, RotateCcw, Filter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getAllCategories, autocompleteTags } from "../../firebase/tagsApi";
 import { toastError } from "../../utils/toastHandler";
-import {
-  Combobox,
-  ComboboxInput,
-  ComboboxOption,
-  ComboboxOptions
-} from "@headlessui/react";
+import TagAutocomplete from "./TagAutocomplete";
 
 function TagPill({ children, onRemove }) {
   return (
@@ -23,80 +18,17 @@ function TagPill({ children, onRemove }) {
 }
 
 function FilterField({ id, label, placeholder, onSelect }) {
-  const [inputValue, setInputValue] = useState("");
-  const [debounceTimeout, setDebounceTimeout] = useState(null);
-
-  const [suggestedTags, setSuggestedTags] = useState([]);
-
-  // JUST FOR HEADLESSUI COMBOBOX. NOT USED FOR FILTERING LOGIC
-  const [selectedTag, setSelectedTag] = useState(null);
-
-  useEffect(() => {
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
-    }
-
-    if (inputValue.length >= 2) {
-      const timeout = setTimeout(async () => {
-        try {
-          const tagList = await autocompleteTags(label, inputValue, 8);
-
-          setSuggestedTags(tagList);
-        } catch (err) {
-          console.error("Error fetching tags:", err);
-        }
-      }, 200);
-      setDebounceTimeout(timeout);
-    } else {
-      setSuggestedTags([]);
-    }
-
-    return () => {
-      if (debounceTimeout) clearTimeout(debounceTimeout);
-    };
-  }, [inputValue, label]);
-
-  function handleInputChange(e) {
-    setInputValue(e);
-  }
-
   return (
     <section className="rounded-xl border border-ui-border p-4">
       <label htmlFor={id} className="block text-sm font-medium text-ui-text">
         {label}
       </label>
       <div className="mt-2">
-        <Combobox
-          value={selectedTag}
-          onChange={(tag) => {
-            onSelect(tag);
-            setSelectedTag(null);
-          }}
-        >
-          <div className="relative">
-            <ComboboxInput
-              id={id}
-              name={id}
-              autoComplete="off"
-              placeholder={placeholder}
-              displayValue={(tag) => tag?.name}
-              onChange={(event) => handleInputChange(event.target.value)}
-              className="block w-full rounded-md border border-ui-border bg-ui-surface px-3 py-2 text-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
-            />
-
-            <ComboboxOptions className="absolute left-0 top-full z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-ui-border bg-ui-surface shadow-lg empty:invisible">
-              {suggestedTags.map((tag) => (
-                <ComboboxOption
-                  key={tag.id}
-                  value={tag}
-                  className="cursor-pointer px-3 py-2 text-sm data-focus:bg-brand-primary/10"
-                >
-                  {tag.name}
-                </ComboboxOption>
-              ))}
-            </ComboboxOptions>
-          </div>
-        </Combobox>
+        <TagAutocomplete
+          id={id}
+          placeholder={placeholder}
+          onTagSelect={onSelect}
+        />
       </div>
     </section>
   );

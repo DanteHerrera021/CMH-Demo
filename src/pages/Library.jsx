@@ -4,7 +4,6 @@ import FilterSidebar from "../components/assets/FilterSidebar";
 import PhotoCard from "../components/assets/LibraryPhotoCard";
 import { libraryLoader } from "../loaders/libraryLoader";
 import { toastError } from "../utils/toastHandler";
-import { ToastContainer, Slide } from "react-toastify";
 
 function useIsVisible(ref) {
   const [isIntersecting, setIntersecting] = useState(false);
@@ -117,19 +116,6 @@ export default function Library() {
 
   return (
     <div className="min-h-screen">
-      <ToastContainer
-        position="bottom-right"
-        autoClose={5000}
-        hideProgressBar
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss={false}
-        draggable
-        pauseOnHover
-        theme="light"
-        transition={Slide}
-      />
       <div className="md:grid md:grid-cols-[240px_1fr] lg:grid-cols-[260px_1fr]">
         {/* Mobile header */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/10 bg-white px-4 py-3 md:hidden">

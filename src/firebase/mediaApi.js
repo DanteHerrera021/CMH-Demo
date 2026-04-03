@@ -1,4 +1,15 @@
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, startAfter, startAt, where } from "firebase/firestore";
+import {
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    startAfter,
+    where,
+    updateDoc
+} from "firebase/firestore";
 import { db } from "./config";
 import { mapMediaDoc } from "../maps/MapMediaDoc";
 
@@ -29,6 +40,20 @@ export async function getMediaPage(lastDoc = null, pageSize = 20, tags = []) {
 
     return {
         images: snap.docs.map(mapMediaDoc),
-        nextCursor: snap.docs.length ? snap.docs[snap.docs.length - 1] : null,
-    }
+        nextCursor: snap.docs.length ? snap.docs[snap.docs.length - 1] : null
+    };
+}
+
+export async function updateMedia(id, updates) {
+    const ref = doc(db, "media", id);
+    await updateDoc(ref, updates);
+}
+
+export async function updateMediaTags(id, tags) {
+    const ref = doc(db, "media", id);
+
+    await updateDoc(ref, {
+        tagIds: tags.map((tag) => tag.id),
+        tagSlugs: tags.map((tag) => tag.slugName ?? tag.slug).filter(Boolean)
+    });
 }

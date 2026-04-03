@@ -1,8 +1,22 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/imgs/captivate-exhibits-header.png";
-import { Settings } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import { signOut } from "firebase/auth";
+import { auth } from "../../firebase/config";
 
 export default function Navbar() {
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    try {
+      await signOut(auth);
+      console.log("Signed Out");
+      navigate("/login");
+    } catch (error) {
+      console.error("Sign Out Error", error);
+    }
+  }
+
   return (
     <nav className="bg-ui-surface shadow">
       <div className="mx-auto px-6 md:px-10 xl:px-16">
@@ -12,7 +26,7 @@ export default function Navbar() {
               <img src={logo} alt="Captivate Media Hub" className="h-full" />
             </Link>
           </div>
-          <div>
+          <div className="flex gap-5">
             <Link to="/settings">
               <Settings
                 size={36}
@@ -20,6 +34,15 @@ export default function Navbar() {
                 className="cursor-pointer hover:text-gray-900 hover:rotate-45 hover:scale-110 transition-transform duration-200"
               />
             </Link>
+            <LogOut
+              size={36}
+              strokeWidth="1.5"
+              className="cursor-pointer hover:text-gray-900 hover:scale-110 transition-transform duration-200"
+              onClick={(e) => {
+                e.preventDefault();
+                handleLogout();
+              }}
+            />
           </div>
         </div>
       </div>

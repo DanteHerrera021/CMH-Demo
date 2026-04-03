@@ -1,155 +1,189 @@
-import { useMemo, useState } from "react";
-import { useLoaderData } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLoaderData, useNavigate } from "react-router-dom";
 import { PageContainer } from "../components/layout/PageContainer";
 import ZoomImage from "../components/assets/ZoomImage";
-import { FingerprintPattern, File, Tag, CalendarDays, X } from "lucide-react";
+import {
+  FingerprintPattern,
+  File,
+  Tag,
+  CalendarDays,
+  X,
+  IdCard,
+  SquareActivity
+} from "lucide-react";
 import Button from "../components/ui/Button";
 import TagCategoryField from "../components/assets/TagCategoryField";
-
-const images = import.meta.glob("../assets/imgs/temp/*.jpg", { eager: true });
-
-const TAG_CATEGORIES = [
-  {
-    key: "showName",
-    label: "Show Name",
-    placeholder: "Search show names"
-  },
-  {
-    key: "companyName",
-    label: "Company Name",
-    placeholder: "Search companies"
-  },
-  {
-    key: "location",
-    label: "Location",
-    placeholder: "Search locations"
-  },
-  {
-    key: "industry",
-    label: "Industry",
-    placeholder: "Search industries"
-  },
-  {
-    key: "displaySize",
-    label: "Display Size",
-    placeholder: "Search display sizes"
-  },
-  {
-    key: "boothType",
-    label: "Booth Type",
-    placeholder: "Search booth types"
-  },
-  {
-    key: "additionalTags",
-    label: "Additional Tags",
-    placeholder: "Search additional tags"
-  }
-];
+import { getAllCategories, getTagById } from "../firebase/tagsApi";
+import { updateMediaTags } from "../firebase/mediaApi";
+import { toastError, toastSuccess } from "../utils/toastHandler";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../firebase/config";
 
 export default function Image() {
-  const { id, src } = useLoaderData();
+  const navigate = useNavigate();
+  const image = useLoaderData();
 
+  const [categories, setCategories] = useState([]);
+  const [selectedTags, setSelectedTags] = useState([]);
   const [date, setDate] = useState("");
-  const [tagValues, setTagValues] = useState({
-    showName: [],
-    companyName: [],
-    location: [],
-    industry: [],
-    displaySize: [],
-    boothType: [],
-    additionalTags: []
-  });
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const [drafts, setDrafts] = useState({
-    showName: "",
-    companyName: "",
-    location: "",
-    industry: "",
-    displaySize: "",
-    boothType: "",
-    additionalTags: ""
-  });
+  useEffect(() => {
+    async function loadPageData() {
+      try {
+        setIsLoading(true);
 
-  const activeTags = useMemo(() => {
-    return Object.entries(tagValues).flatMap(([category, tags]) =>
-      tags.map((tag) => ({
-        id: `${category}-${tag}`,
-        category,
-        label: tag
-      }))
-    );
-  }, [tagValues]);
+        const [categoryList, hydratedTags] = await Promise.all([
+          getAllCategories(),
+          Promise.all((image.tagIds || []).map((tagId) => getTagById(tagId)))
+        ]);
 
-  function updateDraft(categoryKey, value) {
-    setDrafts((prev) => ({
-      ...prev,
-      [categoryKey]: value
-    }));
-  }
+        setCategories(categoryList);
+        setSelectedTags(hydratedTags.filter(Boolean));
+        setDate(formatDateForInput(image.createdAt));
+        setName(image.title);
+      } catch (error) {
+        console.error("Failed to load image page data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
 
-  function addTag(categoryKey) {
-    const rawValue = drafts[categoryKey];
-    const trimmedValue = rawValue.trim();
+    loadPageData();
+  }, [image]);
 
-    if (!trimmedValue) return;
+  const tagsByCategory = useMemo(() => {
+    const grouped = {};
 
-    setTagValues((prev) => {
-      const existing = prev[categoryKey];
-      const alreadyExists = existing.some(
-        (tag) => tag.toLowerCase() === trimmedValue.toLowerCase()
+    for (const category of categories) {
+      grouped[category.name] = [];
+    }
+
+    for (const tag of selectedTags) {
+      const categoryName = tag.category || "Uncategorized";
+
+      if (!grouped[categoryName]) {
+        grouped[categoryName] = [];
+      }
+
+      grouped[categoryName].push(tag);
+    }
+
+    return grouped;
+  }, [categories, selectedTags]);
+
+  function handleTagSelect(tag) {
+    if (!tag) return;
+
+    setSelectedTags((prev) => {
+      const alreadySelected = prev.some(
+        (existingTag) => existingTag.id === tag.id
       );
-
-      if (alreadyExists) return prev;
-
-      return {
-        ...prev,
-        [categoryKey]: [...existing, trimmedValue]
-      };
+      if (alreadySelected) return prev;
+      return [...prev, tag];
     });
-
-    setDrafts((prev) => ({
-      ...prev,
-      [categoryKey]: ""
-    }));
   }
 
-  function removeTag(categoryKey, tagToRemove) {
-    setTagValues((prev) => ({
-      ...prev,
-      [categoryKey]: prev[categoryKey].filter((tag) => tag !== tagToRemove)
-    }));
+  function handleRemoveTag(tagToRemove) {
+    setSelectedTags((prev) => prev.filter((tag) => tag.id !== tagToRemove.id));
   }
 
-  function handleKeyDown(event, categoryKey) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      addTag(categoryKey);
+  function handleRevert() {
+    async function resetTags() {
+      try {
+        setIsLoading(true);
+
+        const hydratedTags = await Promise.all(
+          (image.tagIds || []).map((tagId) => getTagById(tagId))
+        );
+
+        setSelectedTags(hydratedTags.filter(Boolean));
+        setDate(formatDateForInput(image.createdAt));
+        setName(image.title);
+      } catch (error) {
+        console.error("Failed to revert image details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    resetTags();
+  }
+
+  async function handleSave(event) {
+    event.preventDefault();
+
+    try {
+      setIsSaving(true);
+      await updateMediaTags(image.id, selectedTags);
+      toastSuccess("Image details saved successfully!");
+    } catch (error) {
+      console.error("Failed to save image details:", error);
+      toastError("Failed to save details.");
+    } finally {
+      setIsSaving(false);
     }
   }
 
-  function handleSave(event) {
-    event.preventDefault();
+  async function downloadImage() {
+    console.log(image.url);
+    const response = await fetch(image.url);
+    const blob = await response.blob();
 
-    const payload = {
-      imageId: id,
-      filename: `img${id}.jpg`,
-      date,
-      tags: tagValues
-    };
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "image.jpg";
 
-    console.log("Saving image details:", payload);
-    alert("Details saved!");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    window.URL.revokeObjectURL(url);
+  }
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this image? This cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const deleteMedia = httpsCallable(functions, "deleteMedia");
+
+      await deleteMedia({
+        mediaId: image.id // 🔥 must match Firestore doc ID
+      });
+
+      toastSuccess("Image deleted successfully.");
+
+      navigate("/library");
+    } catch (error) {
+      console.error(error);
+      toastError("Failed to delete image.");
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <PageContainer>
+        <div className="mt-8 text-ui-text">Loading image details...</div>
+      </PageContainer>
+    );
   }
 
   return (
     <PageContainer>
-      <div className="mt-8 mb-12">
+      <div className="mb-12 mt-8">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-ui-text">
+            <h1 className="text-3xl font-bold text-ui-text md:text-4xl">
               Image Details
             </h1>
-            <p className="mt-2 text-sm md:text-base text-ui-muted max-w-2xl">
+            <p className="mt-2 max-w-2xl text-sm text-ui-muted md:text-base">
               Review the image, apply tags, and update metadata.
             </p>
           </div>
@@ -157,24 +191,24 @@ export default function Image() {
           <div className="flex flex-wrap gap-3">
             <MetaPill
               icon={<FingerprintPattern size={16} className="text-white" />}
-              text={id}
+              text={image.id}
             />
             <MetaPill
               icon={<File size={16} className="text-white" />}
-              text={`img${id}.jpg`}
+              text={image.filename}
             />
           </div>
         </div>
 
         <form onSubmit={handleSave}>
-          <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-8 items-start">
-            <aside className="xl:sticky xl:top-6 space-y-4">
+          <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-[380px_minmax(0,1fr)]">
+            <aside className="space-y-4 xl:sticky xl:top-6">
               <div className="overflow-hidden rounded-2xl border border-ui-border bg-ui-surface shadow-sm">
-                <ZoomImage src={src} alt={`Image ${id}`}>
+                <ZoomImage src={image.url} alt={image.filename}>
                   <img
-                    src={src}
-                    alt={`Image ${id}`}
-                    className="w-full h-auto object-cover"
+                    src={image.url}
+                    alt={image.filename}
+                    className="h-auto w-full object-cover"
                   />
                   <div className="flex items-center justify-between gap-3 border-t border-ui-border bg-black/60 px-4 py-3 text-sm text-white">
                     <span>Click to enlarge image</span>
@@ -184,14 +218,44 @@ export default function Image() {
               </div>
 
               <div className="rounded-2xl border border-ui-border bg-ui-surface p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="mb-3 flex items-center gap-2">
+                  <SquareActivity size={18} className="text-brand-primary" />
+                  <h2 className="text-lg font-semibold text-ui-text">
+                    Image Actions
+                  </h2>
+                </div>
+
+                <div className="flex flex-row justify-between">
+                  <Button
+                    text={"Download Image"}
+                    rounded="sm"
+                    className="bg-brand-primary text-white"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      downloadImage();
+                    }}
+                  />
+                  <Button
+                    text={"Delete Image"}
+                    rounded="sm"
+                    className="bg-brand-danger text-white"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDelete();
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-ui-border bg-ui-surface p-4 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
                   <CalendarDays size={18} className="text-brand-primary" />
                   <h2 className="text-lg font-semibold text-ui-text">Date</h2>
                 </div>
 
                 <label
                   htmlFor="date"
-                  className="block text-sm font-medium text-ui-muted mb-2"
+                  className="mb-2 block text-sm font-medium text-ui-muted"
                 >
                   Image date
                 </label>
@@ -201,30 +265,52 @@ export default function Image() {
                   name="date"
                   value={date}
                   onChange={(event) => setDate(event.target.value)}
-                  className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+                  className="block w-full rounded-md border border-ui-border bg-ui-surface px-3 py-2 text-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-ui-border bg-ui-surface p-4 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
+                  <IdCard size={18} className="text-brand-primary" />
+                  <h2 className="text-lg font-semibold text-ui-text">Name</h2>
+                </div>
+
+                <label
+                  htmlFor="name"
+                  className="mb-2 block text-sm font-medium text-ui-muted"
+                >
+                  Image Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  name="name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="block w-full rounded-md border border-ui-border bg-ui-surface px-3 py-2 text-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
                 />
               </div>
             </aside>
 
             <section className="space-y-6">
-              <div className="rounded-2xl border border-ui-border bg-ui-surface p-5 md:p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
+              <div className="rounded-2xl border border-ui-border bg-ui-surface p-5 shadow-sm md:p-6">
+                <div className="mb-4 flex items-center gap-2">
                   <Tag size={18} className="text-brand-primary" />
                   <h2 className="text-lg font-semibold text-ui-text">
                     Active Tags
                   </h2>
                 </div>
 
-                {activeTags.length > 0 ? (
+                {selectedTags.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {activeTags.map((tag) => (
+                    {selectedTags.map((tag) => (
                       <button
                         key={tag.id}
                         type="button"
-                        onClick={() => removeTag(tag.category, tag.label)}
+                        onClick={() => handleRemoveTag(tag)}
                         className="inline-flex items-center gap-2 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3 py-1.5 text-sm text-brand-primary transition hover:bg-brand-primary/15"
                       >
-                        <span>{tag.label}</span>
+                        <span>{tag.name}</span>
                         <X size={14} />
                       </button>
                     ))}
@@ -236,45 +322,40 @@ export default function Image() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-ui-border bg-ui-surface p-5 md:p-6 shadow-sm">
+              <div className="rounded-2xl border border-ui-border bg-ui-surface p-5 shadow-sm md:p-6">
                 <div className="mb-5">
                   <h2 className="text-lg font-semibold text-ui-text">
                     Tag Categories
                   </h2>
                   <p className="mt-1 text-sm text-ui-muted">
-                    Each section adds tags to this image. Press Enter or click
-                    Add Tag.
+                    Search for tags by category and add them to this image.
                   </p>
                 </div>
 
                 <div className="space-y-5">
-                  {TAG_CATEGORIES.map((category) => (
+                  {categories.map((category) => (
                     <TagCategoryField
-                      key={category.key}
-                      label={category.label}
-                      placeholder={category.placeholder}
-                      value={drafts[category.key]}
-                      tags={tagValues[category.key]}
-                      onChange={(value) => updateDraft(category.key, value)}
-                      onAdd={() => addTag(category.key)}
-                      onRemove={(tag) => removeTag(category.key, tag)}
-                      onKeyDown={(event) => handleKeyDown(event, category.key)}
+                      key={category.id}
+                      label={category.name}
+                      placeholder={`Search ${category.name.toLowerCase()}`}
+                      tags={tagsByCategory[category.name] ?? []}
+                      onTagSelect={handleTagSelect}
+                      onRemove={handleRemoveTag}
                     />
                   ))}
                 </div>
               </div>
 
               <div className="sticky bottom-4 z-10">
-                <div className="rounded-2xl border border-ui-border bg-ui-surface/95 backdrop-blur px-4 py-4 shadow-lg">
+                <div className="rounded-2xl border border-ui-border bg-ui-surface/95 px-4 py-4 shadow-lg backdrop-blur">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm font-medium text-ui-text">
                         Ready to save?
                       </p>
                       <p className="text-sm text-ui-muted">
-                        {activeTags.length} tag
-                        {activeTags.length === 1 ? "" : "s"} applied
-                        {date ? " • date selected" : ""}
+                        {selectedTags.length} tag
+                        {selectedTags.length === 1 ? "" : "s"} applied
                       </p>
                     </div>
 
@@ -284,13 +365,15 @@ export default function Image() {
                         text="Revert Changes"
                         rounded="sm"
                         className="bg-brand-danger text-white"
+                        onClick={handleRevert}
                       />
 
                       <Button
                         type="submit"
-                        text="Save Details"
+                        text={isSaving ? "Saving..." : "Save Details"}
                         rounded="sm"
                         className="bg-brand-primary text-white"
+                        disabled={isSaving}
                       />
                     </div>
                   </div>
@@ -306,24 +389,24 @@ export default function Image() {
 
 function MetaPill({ icon, text }) {
   return (
-    <div className="rounded bg-brand-primary py-1.5 px-3 flex items-center gap-2">
+    <div className="flex items-center gap-2 rounded bg-brand-primary px-3 py-1.5">
       {icon}
-      <p className="text-white text-sm">{text}</p>
+      <p className="text-sm text-white">{text}</p>
     </div>
   );
 }
 
-export async function imageLoader({ params }) {
-  const { id } = params;
-  const imagePath = `../assets/imgs/temp/img${id}.jpg`;
-  const imageModule = images[imagePath];
+function formatDateForInput(value) {
+  if (!value) return "";
 
-  if (!imageModule) {
-    throw new Response("Image Not Found", { status: 404 });
-  }
+  const date =
+    typeof value?.toDate === "function" ? value.toDate() : new Date(value);
 
-  return {
-    id,
-    src: imageModule.default
-  };
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }

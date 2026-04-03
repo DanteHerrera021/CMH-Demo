@@ -34,7 +34,6 @@ import { Upload, Pencil, X } from "lucide-react";
 import { PageContainer } from "../components/layout/PageContainer";
 import Button from "../components/ui/Button";
 import { useState } from "react";
-import { ToastContainer, Slide } from "react-toastify";
 import heic2any from "heic2any";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
@@ -318,19 +317,6 @@ export default function ImageUpload() {
 
   return (
     <PageContainer>
-      <ToastContainer
-        position="bottom-right"
-        autoClose={5000}
-        hideProgressBar
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss={false}
-        draggable
-        pauseOnHover
-        theme="light"
-        transition={Slide}
-      />
       <div className="flex flex-col items-center py-6">
         <div className="mb-10 text-left w-full">
           <h1 className="text-4xl font-bold mb-1">Upload Your Images</h1>

@@ -26,6 +26,12 @@ export async function autocompleteTags(category = null, text, returnLimit = 8) {
     return snap.docs.map(mapTagDoc);
 }
 
+export async function getAllTags() {
+    const q = query(collection(db, "tags"), orderBy("name"));
+    const snap = await getDocs(q);
+    return snap.docs.map(mapTagDoc);
+}
+
 export async function getTagById(id) {
     const snap = await getDoc(doc(db, "tags", id));
     if (!snap.exists()) return null;
