@@ -8,7 +8,8 @@ import {
     query,
     startAfter,
     where,
-    updateDoc
+    updateDoc,
+    getCountFromServer
 } from "firebase/firestore";
 import { db } from "./config";
 import { mapMediaDoc } from "../maps/MapMediaDoc";
@@ -56,4 +57,10 @@ export async function updateMediaTags(id, tags) {
         tagIds: tags.map((tag) => tag.id),
         tagSlugs: tags.map((tag) => tag.slugName ?? tag.slug).filter(Boolean)
     });
+}
+
+export async function getMediaCount() {
+    const coll = collection(db, "media");
+    const snapshot = await getCountFromServer(coll);
+    return snapshot.data().count;
 }

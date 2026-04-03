@@ -1,4 +1,4 @@
-import { collection, doc, endAt, getDoc, getDocs, limit, orderBy, query, startAt, where } from "firebase/firestore";
+import { collection, doc, endAt, getCountFromServer, getDoc, getDocs, limit, orderBy, query, startAt, where } from "firebase/firestore";
 import { mapCategoryDoc } from "../maps/MapCategoryDoc";
 import { mapTagDoc } from "../maps/MapTagDoc";
 import { db } from "./config";
@@ -54,4 +54,10 @@ export async function getAllCategories() {
     const snap = await getDocs(q);
 
     return snap.docs.map(mapCategoryDoc);
+}
+
+export async function getTagsCount() {
+    const coll = collection(db, "tags");
+    const snapshot = await getCountFromServer(coll);
+    return snapshot.data().count;
 }
