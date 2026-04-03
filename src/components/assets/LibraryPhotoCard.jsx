@@ -2,7 +2,7 @@ import ZoomImage from "./ZoomImage";
 
 export default function PhotoCard({ image }) {
   return (
-    <article className="mb-5 break-inside-avoid overflow-hidden bg-black/5">
+    <article className="break-inside-avoid overflow-hidden bg-black/5">
       <div className="relative">
         <ZoomImage
           src={image.url}

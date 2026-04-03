@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Funnel } from "lucide-react";
 import FilterSidebar from "../components/assets/FilterSidebar";
 import PhotoCard from "../components/assets/LibraryPhotoCard";
@@ -15,10 +15,63 @@ function useIsVisible(ref) {
 
     if (ref.current) observer.observe(ref.current);
 
-    return () => observer.disconnect(); // Cleanup
+    return () => observer.disconnect();
   }, [ref]);
 
   return isIntersecting;
+}
+
+function useColumnCount() {
+  const [columnCount, setColumnCount] = useState(getColumnCount());
+
+  useEffect(() => {
+    function handleResize() {
+      setColumnCount(getColumnCount());
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return columnCount;
+}
+
+function getColumnCount() {
+  const width = window.innerWidth;
+
+  if (width >= 1536) return 4; // 2xl
+  if (width >= 1280) return 3; // xl
+  if (width >= 640) return 2; // sm
+  return 1;
+}
+
+function distributeImages(images, columnCount) {
+  const columns = Array.from({ length: columnCount }, () => ({
+    items: [],
+    height: 0
+  }));
+
+  for (const image of images) {
+    const aspectRatio =
+      image.width && image.height ? image.height / image.width : 1;
+
+    // Estimated visual height score.
+    // The + 140 helps account for card chrome like title/buttons/padding.
+    const estimatedHeight = aspectRatio * 300 + 140;
+
+    let shortestColumnIndex = 0;
+
+    for (let i = 1; i < columns.length; i++) {
+      if (columns[i].height < columns[shortestColumnIndex].height) {
+        shortestColumnIndex = i;
+      }
+    }
+
+    columns[shortestColumnIndex].items.push(image);
+    columns[shortestColumnIndex].height += estimatedHeight;
+  }
+
+  return columns.map((column) => column.items);
 }
 
 export default function Library() {
@@ -26,7 +79,6 @@ export default function Library() {
 
   const [selectedTags, setSelectedTags] = useState([]);
 
-  // TODO: add date filtering options in the future
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
 
@@ -40,6 +92,12 @@ export default function Library() {
   const isVisible = useIsVisible(intersectingDiv);
 
   const didInitialLoad = useRef(false);
+
+  const columnCount = useColumnCount();
+
+  const masonryColumns = useMemo(() => {
+    return distributeImages(images, columnCount);
+  }, [images, columnCount]);
 
   function handleAddTag(tag) {
     setSelectedTags((prev) => {
@@ -117,7 +175,6 @@ export default function Library() {
   return (
     <div className="min-h-screen">
       <div className="md:grid md:grid-cols-[240px_1fr] lg:grid-cols-[260px_1fr]">
-        {/* Mobile header */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/10 bg-white px-4 py-3 md:hidden">
           <button
             type="button"
@@ -133,7 +190,6 @@ export default function Library() {
           <div className="w-9" />
         </header>
 
-        {/* Desktop sidebar */}
         <aside className="hidden min-h-screen md:block md:shadow-lg">
           <FilterSidebar
             selectedTags={selectedTags}
@@ -142,7 +198,6 @@ export default function Library() {
           />
         </aside>
 
-        {/* Mobile drawer */}
         {filtersOpen && (
           <>
             <div
@@ -161,15 +216,18 @@ export default function Library() {
           </>
         )}
 
-        {/* Main */}
         <main className="min-w-0 p-4 md:p-6">
           <div className="mb-4 hidden items-center justify-between md:flex">
             <h1 className="text-4xl font-bold mb-1">Photos</h1>
           </div>
 
-          <div className="columns-1 gap-5 sm:columns-2 xl:columns-3">
-            {images.map((image) => (
-              <PhotoCard key={image.id} image={image} />
+          <div className="flex gap-5 items-start">
+            {masonryColumns.map((column, columnIndex) => (
+              <div key={columnIndex} className="flex flex-1 flex-col gap-5">
+                {column.map((image) => (
+                  <PhotoCard key={image.id} image={image} />
+                ))}
+              </div>
             ))}
           </div>
 
@@ -188,12 +246,11 @@ export default function Library() {
               </button>
             </div>
           )}
+
           {hasMore && (
-            <div
-              ref={intersectingDiv}
-              className="w-full flex justify-center"
-            ></div>
+            <div ref={intersectingDiv} className="w-full flex justify-center" />
           )}
+
           {!hasMore && (
             <div className="w-full flex justify-center">
               <p className="inline text-sm text-black/60 py-6">
