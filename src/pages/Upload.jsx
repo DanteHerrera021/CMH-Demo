@@ -29,6 +29,7 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useNavigate } from "react-router-dom";
 import { toastError, toastSuccess } from "../utils/toastHandler";
+import PendingImageEditor from "../components/assets/PendingImageEditor";
 
 // -------------------------------------------
 // HELPER FUNCTIONS
@@ -47,9 +48,11 @@ function addFiles(fileList) {
         localId: crypto.randomUUID(),
         file,
         previewUrl: URL.createObjectURL(file),
-        status: "idle", // idle | uploading | success | error
+        status: "idle",
         error: "",
-        tagIds: []
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        date: "",
+        selectedTags: []
       });
     }
   });
@@ -150,6 +153,11 @@ export default function ImageUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const [isError, setIsError] = useState(false);
 
+  const [editingImageId, setEditingImageId] = useState(null);
+
+  const editingImage =
+    images.find((img) => img.localId === editingImageId) || null;
+
   const navigate = useNavigate();
 
   function removeFile(localId) {
@@ -249,15 +257,15 @@ export default function ImageUpload() {
       // Save metadata to Firestore
       try {
         await addDoc(collection(db, "media"), {
-          title: preparedFile.name.replace(/\.[^/.]+$/, ""),
+          title: image.title || preparedFile.name.replace(/\.[^/.]+$/, ""),
           filename: preparedFile.name,
           contentType: preparedFile.type,
           s3Key: s3Key,
           url: publicUrl,
           width: width,
           height: height,
-          tagIds: [],
-          tagSlugs: [],
+          tagIds: (image.selectedTags || []).map((tag) => tag.id),
+          tagSlugs: (image.selectedTags || []).map((tag) => tag.slug),
           createdByRole: "admin", // Replace with actual user role if available
           createdAt: serverTimestamp(),
           updatedByRole: "admin", // Replace with actual user role if available
@@ -299,6 +307,14 @@ export default function ImageUpload() {
         navigate("/library");
       }, 800);
     }
+  }
+
+  function updateDraftImage(localId, updates) {
+    setImages((prevImages) =>
+      prevImages.map((img) =>
+        img.localId === localId ? { ...img, ...updates } : img
+      )
+    );
   }
 
   return (
@@ -365,61 +381,68 @@ export default function ImageUpload() {
         </div>
 
         {/* Selected Images */}
-        <div className="mt-10 w-full max-w-3xl">
+        <div className="mt-10 w-full">
           <h2 className="text-center text-xl font-medium mb-6">
             Selected Images
           </h2>
 
-          <div className="flex justify-center gap-8 flex-wrap">
-            {images.length === 0 ? (
-              <p className="text-gray-500">No images selected.</p>
-            ) : (
-              images.map((img) => (
+          {images.length === 0 ? (
+            <p className="text-center text-gray-500">No images selected.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+              {images.map((img) => (
                 <div
                   key={img.localId}
-                  className="relative w-40 h-40 bg-ui-muted border border-gray-400 overflow-hidden"
+                  className="relative overflow-hidden rounded-2xl bg-ui-surface border border-ui-border shadow-sm"
                 >
-                  <div className="absolute inset-0 flex items-center justify-center text-white">
+                  <div className="relative aspect-square bg-ui-muted">
                     <img
                       src={img.previewUrl}
                       alt={img.file.name}
-                      className="object-cover w-full h-full"
+                      className="w-full h-full object-cover"
                     />
-                  </div>
 
-                  <button
-                    type="button"
-                    className="absolute top-2 left-2 w-8 h-8 rounded-full bg-brand-primary text-white flex items-center justify-center shadow"
-                  >
-                    <Pencil size={14} />
-                  </button>
+                    <button
+                      type="button"
+                      className="absolute top-3 left-3 min-h-10 min-w-10 rounded-full bg-brand-primary text-white flex items-center justify-center shadow"
+                      onClick={() => setEditingImageId(img.localId)}
+                    >
+                      <Pencil size={18} />
+                    </button>
 
-                  <button
-                    type="button"
-                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-brand-danger text-white flex items-center justify-center shadow"
-                    onClick={() => removeFile(img.localId)}
-                  >
-                    <X size={14} />
-                  </button>
+                    <button
+                      type="button"
+                      className="absolute top-3 right-3 min-h-10 min-w-10 rounded-full bg-brand-danger text-white flex items-center justify-center shadow"
+                      onClick={() => removeFile(img.localId)}
+                    >
+                      <X size={24} />
+                    </button>
 
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent pt-8 pb-2">
-                    <div className="overflow-x-auto scrollbar-hide px-2">
-                      <div className="flex w-max flex-nowrap gap-1 pr-1">
-                        {img.tagIds.map((tagId) => (
-                          <span
-                            className="shrink-0 rounded bg-white px-2 py-0.5 text-[10px] shadow"
-                            key={tagId}
-                          >
-                            {tagId}
-                          </span>
-                        ))}
-                      </div>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pt-10 pb-3 px-3">
+                      <p className="text-white text-sm font-medium truncate">
+                        {img.title || img.file.name}
+                      </p>
+
+                      {img.selectedTags?.length > 0 && (
+                        <div className="mt-2 overflow-x-auto scrollbar-hide">
+                          <div className="flex w-max flex-nowrap gap-1 pr-1">
+                            {img.selectedTags.map((tag) => (
+                              <span
+                                key={tag.id}
+                                className="shrink-0 rounded-full bg-white/95 px-2 py-0.5 text-[10px] text-black shadow"
+                              >
+                                {tag.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Confirm button */}
@@ -433,6 +456,15 @@ export default function ImageUpload() {
           ></Button>
         )}
       </div>
+      <PendingImageEditor
+        image={editingImage}
+        isOpen={Boolean(editingImage)}
+        onClose={() => setEditingImageId(null)}
+        onSave={(updates) => {
+          if (!editingImage) return;
+          updateDraftImage(editingImage.localId, updates);
+        }}
+      />
     </PageContainer>
   );
 }
