@@ -1,41 +1,20 @@
-{
-  /* 
-TODOs for real upload functionality:
-
-4. Image preview
-- Revoke object URLs when unmounted to avoid memory leaks
-
-5. Remove / edit image actions
-- Add redirect to edit page for editing metadata and tags
-
-7. Backend validation
-- Re-validate everything on the server
-
-8. iPhone compatibility
-- Fix EXIF orientation so photos do not appear rotated
-
-14. Security
-- Enforce auth/permissions for uploads
-- Restrict who can access uploaded files
-*/
-}
-
-import { Upload, Pencil, X } from "lucide-react";
+import { Upload, Pencil, X, Tag } from "lucide-react";
 import { PageContainer } from "../components/layout/PageContainer";
 import Button from "../components/ui/Button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import heic2any from "heic2any";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useNavigate } from "react-router-dom";
 import { toastError, toastSuccess } from "../utils/toastHandler";
 import PendingImageEditor from "../components/assets/PendingImageEditor";
+import { getTagsByIds } from "../firebase/tagsApi";
 
 // -------------------------------------------
 // HELPER FUNCTIONS
 // -------------------------------------------
 
-function addFiles(fileList) {
+function addFiles(fileList, defaultDate = "", defaultTags = []) {
   const fileArray = [...fileList];
 
   let imgList = [];
@@ -51,8 +30,8 @@ function addFiles(fileList) {
         status: "idle",
         error: "",
         title: file.name.replace(/\.[^/.]+$/, ""),
-        date: "",
-        selectedTags: []
+        date: defaultDate,
+        selectedTags: defaultTags
       });
     }
   });
@@ -153,12 +132,54 @@ export default function ImageUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const [isError, setIsError] = useState(false);
 
+  const [defaultDate, setDefaultDate] = useState("");
+  const [defaultTags, setDefaultTags] = useState([]);
+
   const [editingImageId, setEditingImageId] = useState(null);
 
   const editingImage =
     images.find((img) => img.localId === editingImageId) || null;
 
   const navigate = useNavigate();
+
+  async function getLocalStorage() {
+    const uploadDefaults = localStorage.getItem("uploadDefaults");
+    if (!uploadDefaults) return;
+
+    try {
+      const parsed = JSON.parse(uploadDefaults);
+
+      setDefaultDate(parsed.dateOverride || "");
+
+      const defaultTagIds = parsed.defaultTagIds || [];
+      if (defaultTagIds.length === 0) {
+        setDefaultTags([]);
+        return;
+      }
+
+      const allTags = await getTagsByIds(defaultTagIds);
+      setDefaultTags(allTags);
+
+      const validIds = allTags.map((tag) => tag.id);
+      const invalidIds = defaultTagIds.filter((id) => !validIds.includes(id));
+
+      if (invalidIds.length > 0) {
+        const cleaned = {
+          ...parsed,
+          defaultTagIds: validIds
+        };
+
+        localStorage.setItem("uploadDefaults", JSON.stringify(cleaned));
+      }
+    } catch (err) {
+      console.error("Failed to parse upload defaults from localStorage:", err);
+      localStorage.removeItem("uploadDefaults");
+    }
+  }
+
+  useEffect(() => {
+    getLocalStorage();
+  }, []);
 
   function removeFile(localId) {
     URL.revokeObjectURL(
@@ -346,7 +367,7 @@ export default function ImageUpload() {
               setIsDragging(false);
               setImages((prevImages) => [
                 ...prevImages,
-                ...addFiles(e.dataTransfer.files)
+                ...addFiles(e.dataTransfer.files, defaultDate, defaultTags)
               ]);
             }}
           >
@@ -374,7 +395,7 @@ export default function ImageUpload() {
             onChange={(e) => {
               setImages((prevImages) => [
                 ...prevImages,
-                ...addFiles(e.target.files)
+                ...addFiles(e.target.files, defaultDate, defaultTags)
               ]);
             }}
           />
@@ -419,10 +440,19 @@ export default function ImageUpload() {
                     </button>
 
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pt-10 pb-3 px-3">
-                      <p className="text-white text-sm font-medium truncate">
-                        {img.title || img.file.name}
-                      </p>
-
+                      <div className="flex justify-between">
+                        <p className="text-white text-sm font-medium truncate">
+                          {img.title || img.file.name}
+                        </p>
+                        {img.selectedTags?.length > 0 && (
+                          <div className="flex items-center">
+                            <p className="text-white text-sm font-medium truncate">
+                              {img.selectedTags?.length}
+                            </p>
+                            <Tag size={16} className="text-white ml-1" />
+                          </div>
+                        )}
+                      </div>
                       {img.selectedTags?.length > 0 && (
                         <div className="mt-2 overflow-x-auto scrollbar-hide">
                           <div className="flex w-max flex-nowrap gap-1 pr-1">

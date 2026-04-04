@@ -128,7 +128,6 @@ export default function Image() {
   }
 
   async function downloadImage() {
-    console.log(image.url);
     const response = await fetch(image.url);
     const blob = await response.blob();
 
@@ -225,7 +224,7 @@ export default function Image() {
                   </h2>
                 </div>
 
-                <div className="flex flex-row justify-between">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Button
                     text={"Download"}
                     rounded="sm"

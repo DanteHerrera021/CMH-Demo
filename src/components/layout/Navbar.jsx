@@ -3,6 +3,7 @@ import logo from "../../assets/imgs/captivate-exhibits-header.png";
 import { LogOut, Settings } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase/config";
+import Button from "../ui/Button";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -10,7 +11,6 @@ export default function Navbar() {
   async function handleLogout() {
     try {
       await signOut(auth);
-      console.log("Signed Out");
       navigate("/login");
     } catch (error) {
       console.error("Sign Out Error", error);
@@ -26,7 +26,7 @@ export default function Navbar() {
               <img src={logo} alt="Captivate Media Hub" className="h-full" />
             </Link>
           </div>
-          <div className="flex gap-5">
+          <div className="flex items-center gap-5">
             <Link to="/settings">
               <Settings
                 size={36}
@@ -34,10 +34,10 @@ export default function Navbar() {
                 className="cursor-pointer hover:text-gray-900 hover:rotate-45 hover:scale-110 transition-transform duration-200"
               />
             </Link>
-            <LogOut
-              size={36}
-              strokeWidth="1.5"
-              className="cursor-pointer hover:text-gray-900 hover:scale-110 transition-transform duration-200"
+            <Button
+              text="Logout"
+              rounded="sm"
+              className="border border-brand-danger text-brand-danger hover:bg-brand-danger hover:text-white"
               onClick={(e) => {
                 e.preventDefault();
                 handleLogout();

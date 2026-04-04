@@ -1,3 +1,4 @@
+import { Check, CircleSlash } from "lucide-react";
 import { toast, Slide } from "react-toastify";
 
 function toastError(message) {
@@ -10,6 +11,7 @@ function toastError(message) {
         draggable: true,
         progress: undefined,
         theme: "light",
+        icon: CircleSlash,
         transition: Slide
     });
 }
@@ -24,6 +26,7 @@ function toastSuccess(message) {
         draggable: true,
         progress: undefined,
         theme: "light",
+        icon: Check,
         transition: Slide
     });
 }

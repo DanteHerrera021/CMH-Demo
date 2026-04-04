@@ -72,8 +72,6 @@ export default function Home() {
 
       setTotalImages(imageCount);
       setTagAmount(tagCount);
-
-      console.log(fetchedImage);
       setLastUpload(
         convertTimestamp(fetchedImage.createdAt).toLocaleDateString()
       );

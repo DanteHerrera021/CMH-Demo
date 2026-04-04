@@ -1,4 +1,3 @@
-import React from "react";
 import { createHashRouter, Navigate } from "react-router-dom";
 
 import Shell from "../components/layout/Shell";
@@ -11,6 +10,10 @@ import Settings from "../pages/Settings";
 import { imageLoader } from "../loaders/imageLoader";
 import ProtectedRoute from "../components/layout/ProtectedRoute";
 import Login from "../pages/Login";
+import Tags from "../pages/Tags";
+import Categories from "../pages/Categories";
+import Forbidden from "../pages/Forbidden";
+import AdminRoute from "../components/layout/AdminRoute";
 
 const router = createHashRouter([
   {
@@ -47,12 +50,29 @@ const router = createHashRouter([
           {
             path: "/settings",
             element: <Settings />
+          },
+          {
+            element: <AdminRoute />,
+            children: [
+              {
+                path: "/settings/tags",
+                element: <Tags />
+              },
+              {
+                path: "/settings/categories",
+                element: <Categories />
+              }
+            ]
           }
         ]
       },
       {
         path: "*",
         element: <NotFound />
+      },
+      {
+        path: "/Forbidden",
+        element: <Forbidden />
       }
     ]
   }
