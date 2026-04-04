@@ -25,6 +25,7 @@ function FilterField({ id, label, placeholder, onSelect }) {
       </label>
       <div className="mt-2">
         <TagAutocomplete
+          category={label}
           id={id}
           placeholder={placeholder}
           onTagSelect={onSelect}
@@ -39,7 +40,7 @@ export default function FilterSidebar({
   onClose,
   selectedTags = [],
   onTagSelect,
-  onTagRemove
+  onTagRemove,
 }) {
   const [categories, setCategories] = useState([]);
 

@@ -39,10 +39,11 @@ export async function getTagById(id) {
 }
 
 export async function getTagsByCategory(category) {
+    console.log("Fetching tags for category:", category);
     const q = query(
         collection(db, "tags"),
         where("category", "==", category),
-        orderBy("name")
+        orderBy("slugName")
     );
 
     const snap = await getDocs(q);

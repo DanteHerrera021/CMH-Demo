@@ -6,7 +6,7 @@ export default function TagCategoryField({
   placeholder,
   tags = [],
   onTagSelect,
-  onRemove
+  onRemove,
 }) {
   return (
     <div className="rounded-xl border border-ui-border p-4">

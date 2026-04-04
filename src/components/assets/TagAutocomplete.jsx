@@ -3,19 +3,22 @@ import {
   Combobox,
   ComboboxInput,
   ComboboxOption,
-  ComboboxOptions
+  ComboboxOptions,
 } from "@headlessui/react";
-import { autocompleteTags } from "../../firebase/tagsApi";
+import { autocompleteTags, getTagsByCategory } from "../../firebase/tagsApi";
 
 export default function TagAutocomplete({
   category,
   placeholder,
-  onTagSelect
+  onTagSelect,
 }) {
   const [inputValue, setInputValue] = useState("");
   const [debounceTimeout, setDebounceTimeout] = useState(null);
 
+  const [allTags, setAllTags] = useState([]);
   const [suggestedTags, setSuggestedTags] = useState([]);
+
+  // ONLY FOR HEADLESSUI COMBOBOX
   const [selectedTag, setSelectedTag] = useState(null);
 
   useEffect(() => {
@@ -24,15 +27,18 @@ export default function TagAutocomplete({
     }
 
     if (inputValue.length >= 2) {
-      const timeout = setTimeout(async () => {
+      const timeout = setTimeout(() => {
         try {
-          const tagList = await autocompleteTags(category, inputValue, 8);
+          const tagList = allTags.filter((tag) =>
+            tag.name.toLowerCase().includes(inputValue.toLowerCase()),
+          );
 
           setSuggestedTags(tagList);
         } catch (err) {
           console.error("Error fetching tags:", err);
         }
       }, 200);
+
       setDebounceTimeout(timeout);
     } else {
       setSuggestedTags([]);
@@ -41,19 +47,31 @@ export default function TagAutocomplete({
     return () => {
       if (debounceTimeout) clearTimeout(debounceTimeout);
     };
-  }, [inputValue, category]);
+  }, [inputValue, allTags]);
 
   function handleInputChange(e) {
     setInputValue(e);
   }
-  // JUST FOR HEADLESSUI COMBOBOX. NOT USED FOR FILTERING LOGIC
+
+  async function handleOnFocus() {
+    if (allTags.length === 0) {
+      try {
+        setAllTags(await getTagsByCategory(category));
+      } catch (err) {
+        console.error("Error fetching all tags:", err);
+        toastError("Failed to load tags. Please try again.");
+      }
+    }
+  }
 
   return (
     <Combobox
       value={selectedTag}
       onChange={(tag) => {
+        if (!tag) return;
         onTagSelect(tag);
         setSelectedTag(null);
+        setInputValue("");
       }}
     >
       <div className="relative">
@@ -64,6 +82,7 @@ export default function TagAutocomplete({
           placeholder={placeholder}
           displayValue={(tag) => tag?.name}
           onChange={(event) => handleInputChange(event.target.value)}
+          onFocus={handleOnFocus}
           className="block w-full rounded-md border border-ui-border bg-ui-surface px-3 py-2 text-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
         />
 
