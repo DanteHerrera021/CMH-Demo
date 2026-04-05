@@ -3,14 +3,14 @@ import {
   Combobox,
   ComboboxInput,
   ComboboxOption,
-  ComboboxOptions,
+  ComboboxOptions
 } from "@headlessui/react";
 import { autocompleteTags, getTagsByCategory } from "../../firebase/tagsApi";
 
 export default function TagAutocomplete({
   category,
   placeholder,
-  onTagSelect,
+  onTagSelect
 }) {
   const [inputValue, setInputValue] = useState("");
   const [debounceTimeout, setDebounceTimeout] = useState(null);
@@ -30,7 +30,7 @@ export default function TagAutocomplete({
       const timeout = setTimeout(() => {
         try {
           const tagList = allTags.filter((tag) =>
-            tag.name.toLowerCase().includes(inputValue.toLowerCase()),
+            tag.name.toLowerCase().includes(inputValue.toLowerCase())
           );
 
           setSuggestedTags(tagList);
@@ -91,7 +91,7 @@ export default function TagAutocomplete({
             <ComboboxOption
               key={tag.id}
               value={tag}
-              className="cursor-pointer px-3 py-2 text-sm data-focus:bg-brand-primary/10"
+              className="cursor-pointer px-3 py-2 text-sm data-[focus]:bg-brand-primary/10"
             >
               {tag.name}
             </ComboboxOption>

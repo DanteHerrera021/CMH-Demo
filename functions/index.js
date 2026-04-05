@@ -3,7 +3,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const crypto = require("node:crypto");
 
@@ -93,6 +93,54 @@ exports.presignUpload = onRequest(
     } catch (error) {
       logger.error("presignUpload error", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
+    }
+  }
+);
+
+exports.presignDownload = onRequest(
+  {
+    region: "us-central1",
+    cors: true,
+    secrets: [awsAccessKeyId, awsSecretAccessKey],
+  },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    try {
+      const { key, filename } = req.body || {};
+
+      if (!key) {
+        res.status(400).json({ error: "Missing key" });
+        return;
+      }
+
+      const safeFilename = sanitizeFilename(filename || "download.jpg");
+
+      const s3 = new S3Client({
+        region: AWS_REGION,
+        credentials: {
+          accessKeyId: awsAccessKeyId.value(),
+          secretAccessKey: awsSecretAccessKey.value(),
+        },
+      });
+
+      const command = new GetObjectCommand({
+        Bucket: AWS_BUCKET_NAME,
+        Key: key,
+        ResponseContentDisposition: `attachment; filename="${safeFilename}"`,
+      });
+
+      const downloadUrl = await getSignedUrl(s3, command, {
+        expiresIn: 60,
+      });
+
+      res.status(200).json({ downloadUrl });
+    } catch (error) {
+      logger.error("presignDownload error", error);
+      res.status(500).json({ error: "Failed to generate download URL" });
     }
   }
 );

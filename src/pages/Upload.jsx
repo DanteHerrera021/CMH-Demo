@@ -191,8 +191,6 @@ export default function ImageUpload() {
   }
 
   async function handleConfirmUpload() {
-    console.info("UPLOADING IMAGES");
-
     setIsUploading(true);
     setIsError(false);
 
@@ -221,19 +219,16 @@ export default function ImageUpload() {
         return;
       }
 
-      const response = await fetch(
-        "https://presignupload-mhimmq7ewq-uc.a.run.app",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            filename: preparedFile.name,
-            contentType: preparedFile.type
-          })
-        }
-      );
+      const response = await fetch(import.meta.env.VITE_PRESIGN_UPLOAD_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          filename: preparedFile.name,
+          contentType: preparedFile.type
+        })
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -313,14 +308,11 @@ export default function ImageUpload() {
             : img
         )
       );
-      console.info("IMAGE UPLOADED SUCCESSFULLY");
 
       removeFile(image.localId);
     }
 
     setIsUploading(false);
-
-    console.info("ALL IMAGES PROCESSED");
 
     if (!isError) {
       toastSuccess("All images uploaded successfully!");

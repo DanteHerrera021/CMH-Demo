@@ -79,8 +79,8 @@ export default function Library() {
 
   const [selectedTags, setSelectedTags] = useState([]);
 
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [images, setImages] = useState([]);
@@ -120,7 +120,7 @@ export default function Library() {
     }
 
     resetAndReload();
-  }, [selectedTags]);
+  }, [selectedTags, startDate, endDate]);
 
   useEffect(() => {
     if (didInitialLoad.current) return;
@@ -148,7 +148,9 @@ export default function Library() {
       const response = await libraryLoader(
         reset ? null : nextCursor,
         PAGE_SIZE,
-        tagIds
+        tagIds,
+        startDate,
+        endDate
       );
 
       setImages((prev) => {
@@ -170,6 +172,24 @@ export default function Library() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleNewStartDate(value) {
+    setStartDate(value);
+  }
+
+  function handleNewEndDate(value) {
+    setEndDate(value);
+  }
+
+  function handleClearAll() {
+    setSelectedTags([]);
+    setStartDate("");
+    setEndDate("");
+  }
+
+  function handleResetTags() {
+    setSelectedTags([]);
   }
 
   return (
@@ -195,6 +215,12 @@ export default function Library() {
             selectedTags={selectedTags}
             onTagSelect={handleAddTag}
             onTagRemove={handleRemoveTag}
+            onResetTags={handleResetTags}
+            onStartDateChange={handleNewStartDate}
+            onEndDateChange={handleNewEndDate}
+            startDate={startDate}
+            endDate={endDate}
+            onClearAll={handleClearAll}
           />
         </aside>
 
@@ -206,11 +232,15 @@ export default function Library() {
             />
             <aside className="fixed inset-y-0 left-0 z-50 w-[88vw] max-w-[320px] border-r border-black/10 bg-[#f3f3f3] md:hidden">
               <FilterSidebar
-                mobile
-                onClose={() => setFiltersOpen(false)}
                 selectedTags={selectedTags}
                 onTagSelect={handleAddTag}
                 onTagRemove={handleRemoveTag}
+                onResetTags={handleResetTags}
+                onStartDateChange={handleNewStartDate}
+                onEndDateChange={handleNewEndDate}
+                startDate={startDate}
+                endDate={endDate}
+                onClearAll={handleClearAll}
               />
             </aside>
           </>
@@ -235,11 +265,7 @@ export default function Library() {
             <div className="rounded-lg border border-dashed border-black/20 p-10 text-center text-black/60">
               No photos found. Try adjusting or{" "}
               <button
-                onClick={() => {
-                  setSelectedTags([]);
-                  setStartDate(null);
-                  setEndDate(null);
-                }}
+                onClick={() => handleClearAll()}
                 className="underline hover:text-black/80"
               >
                 clearing all filters

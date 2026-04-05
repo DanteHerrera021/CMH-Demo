@@ -128,19 +128,31 @@ export default function Image() {
   }
 
   async function downloadImage() {
-    const response = await fetch(image.url);
-    const blob = await response.blob();
+    try {
+      // Call your backend to get a presigned download URL
+      const res = await fetch(import.meta.env.VITE_PRESIGN_DOWNLOAD_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          key: image.s3key,
+          filename: image.filename || "image.jpg"
+        })
+      });
 
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "image.jpg";
+      if (!res.ok) {
+        throw new Error("Failed to create download URL");
+      }
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const { downloadUrl } = await res.json();
 
-    window.URL.revokeObjectURL(url);
+      // Let the browser handle the file directly
+      window.location.assign(downloadUrl);
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Failed to download image.");
+    }
   }
 
   async function handleDelete() {

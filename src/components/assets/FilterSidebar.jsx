@@ -41,6 +41,12 @@ export default function FilterSidebar({
   selectedTags = [],
   onTagSelect,
   onTagRemove,
+  onResetTags,
+  onStartDateChange,
+  onEndDateChange,
+  startDate = "",
+  endDate = "",
+  onClearAll
 }) {
   const [categories, setCategories] = useState([]);
 
@@ -70,6 +76,7 @@ export default function FilterSidebar({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={onClearAll}
               className="text-sm text-ui-muted hover:text-brand-danger"
             >
               Clear All
@@ -110,6 +117,7 @@ export default function FilterSidebar({
 
             <button
               type="button"
+              onClick={onResetTags}
               className="inline-flex items-center gap-1 text-xs text-ui-muted hover:text-brand-danger"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -140,6 +148,10 @@ export default function FilterSidebar({
             <button
               type="button"
               className="inline-flex items-center gap-1 text-xs text-ui-muted hover:text-brand-danger"
+              onClick={() => {
+                onStartDateChange("");
+                onEndDateChange("");
+              }}
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Reset
@@ -160,6 +172,8 @@ export default function FilterSidebar({
                   type="date"
                   name="from"
                   autoComplete="off"
+                  value={startDate || ""}
+                  onChange={(e) => onStartDateChange(e.target.value)}
                   className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
                 />
               </div>
@@ -178,6 +192,8 @@ export default function FilterSidebar({
                   type="date"
                   name="to"
                   autoComplete="off"
+                  value={endDate || ""}
+                  onChange={(e) => onEndDateChange(e.target.value)}
                   className="block w-full rounded-md bg-ui-surface px-3 py-2 text-md border border-ui-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
                 />
               </div>
