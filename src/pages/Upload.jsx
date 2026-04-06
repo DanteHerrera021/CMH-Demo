@@ -14,27 +14,37 @@ import { getTagsByIds } from "../firebase/tagsApi";
 // HELPER FUNCTIONS
 // -------------------------------------------
 
-function addFiles(fileList, defaultDate = "", defaultTags = []) {
+async function addFiles(fileList, defaultDate = "", defaultTags = []) {
   const fileArray = [...fileList];
+  const imgList = [];
 
-  let imgList = [];
+  for (const file of fileArray) {
+    const validation = imageValidate(file);
 
-  fileArray.forEach((file) => {
-    if (imageValidate(file).valid === false) {
-      toastError(`Error uploading ${file.name}: ${imageValidate(file).error}`);
-    } else {
+    if (!validation.valid) {
+      toastError(`Error uploading ${file.name}: ${validation.error}`);
+      continue;
+    }
+
+    try {
+      const preparedFile = await prepareFileForUpload(file);
+
       imgList.push({
         localId: crypto.randomUUID(),
-        file,
-        previewUrl: URL.createObjectURL(file),
+        file: preparedFile,
+        originalFileName: file.name,
+        previewUrl: URL.createObjectURL(preparedFile),
         status: "idle",
         error: "",
         title: file.name.replace(/\.[^/.]+$/, ""),
         date: defaultDate,
         selectedTags: defaultTags
       });
+    } catch (err) {
+      toastError(`Error preparing ${file.name}: ${err.message}`);
     }
-  });
+  }
+
   return imgList;
 }
 
@@ -354,13 +364,17 @@ export default function ImageUpload() {
               e.preventDefault();
               setIsDragging(false);
             }}
-            onDrop={(e) => {
+            onDrop={async (e) => {
               e.preventDefault();
               setIsDragging(false);
-              setImages((prevImages) => [
-                ...prevImages,
-                ...addFiles(e.dataTransfer.files, defaultDate, defaultTags)
-              ]);
+
+              const newImages = await addFiles(
+                e.dataTransfer.files,
+                defaultDate,
+                defaultTags
+              );
+
+              setImages((prevImages) => [...prevImages, ...newImages]);
             }}
           >
             <div className="w-16 h-16 rounded-full border border-black flex items-center justify-center mb-4">
@@ -384,11 +398,16 @@ export default function ImageUpload() {
             accept="image/*"
             multiple
             className="hidden"
-            onChange={(e) => {
-              setImages((prevImages) => [
-                ...prevImages,
-                ...addFiles(e.target.files, defaultDate, defaultTags)
-              ]);
+            onChange={async (e) => {
+              const newImages = await addFiles(
+                e.target.files,
+                defaultDate,
+                defaultTags
+              );
+
+              setImages((prevImages) => [...prevImages, ...newImages]);
+
+              e.target.value = "";
             }}
           />
         </div>
