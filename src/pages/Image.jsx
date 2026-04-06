@@ -30,6 +30,8 @@ export default function Image() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [isDownloading, setIsDownloading] = useState(false);
+
   useEffect(() => {
     async function loadPageData() {
       try {
@@ -129,7 +131,8 @@ export default function Image() {
 
   async function downloadImage() {
     try {
-      // Call your backend to get a presigned download URL
+      setIsDownloading(true);
+
       const res = await fetch(import.meta.env.VITE_PRESIGN_DOWNLOAD_URL, {
         method: "POST",
         headers: {
@@ -147,11 +150,12 @@ export default function Image() {
 
       const { downloadUrl } = await res.json();
 
-      // Let the browser handle the file directly
       window.location.assign(downloadUrl);
     } catch (err) {
       console.error("Download failed:", err);
       alert("Failed to download image.");
+    } finally {
+      setIsDownloading(false);
     }
   }
 
@@ -238,9 +242,10 @@ export default function Image() {
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Button
-                    text={"Download"}
+                    text={isDownloading ? "Downloading..." : "Download"}
                     rounded="sm"
                     className="bg-brand-primary text-white"
+                    disabled={isDownloading}
                     onClick={(e) => {
                       e.preventDefault();
                       downloadImage();
@@ -250,12 +255,18 @@ export default function Image() {
                     text={"Delete"}
                     rounded="sm"
                     className="bg-brand-danger text-white"
+                    disabled={isDownloading}
                     onClick={(e) => {
                       e.preventDefault();
                       handleDelete();
                     }}
                   />
                 </div>
+                {isDownloading && (
+                  <p className="mt-3 text-sm text-ui-muted">
+                    Preparing download...
+                  </p>
+                )}
               </div>
 
               <div className="rounded-2xl border border-ui-border bg-ui-surface p-4 shadow-sm">
