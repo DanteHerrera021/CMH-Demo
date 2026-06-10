@@ -3,6 +3,7 @@ import { PageContainer } from "../components/layout/PageContainer";
 import Button from "../components/ui/Button";
 import { useEffect, useState } from "react";
 import heic2any from "heic2any";
+import exifr from "exifr";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useNavigate } from "react-router-dom";
@@ -27,7 +28,9 @@ async function addFiles(fileList, defaultDate = "", defaultTags = []) {
     }
 
     try {
+      const capturedDate = await getCapturedDateFromMetadata(file);
       const preparedFile = await prepareFileForUpload(file);
+      const date = capturedDate || defaultDate;
 
       imgList.push({
         localId: crypto.randomUUID(),
@@ -37,7 +40,7 @@ async function addFiles(fileList, defaultDate = "", defaultTags = []) {
         status: "idle",
         error: "",
         title: file.name.replace(/\.[^/.]+$/, ""),
-        date: defaultDate,
+        date,
         selectedTags: defaultTags
       });
     } catch (err) {
@@ -132,6 +135,35 @@ function getImageDimensions(file) {
   });
 }
 
+async function getCapturedDateFromMetadata(file) {
+  try {
+    const metadata = await exifr.parse(file, {
+      pick: ["DateTimeOriginal", "CreateDate", "ModifyDate"]
+    });
+
+    return formatMetadataDateForInput(
+      metadata?.DateTimeOriginal || metadata?.CreateDate || metadata?.ModifyDate
+    );
+  } catch (err) {
+    console.warn(`Failed to read image date metadata for ${file.name}:`, err);
+    return "";
+  }
+}
+
+function formatMetadataDateForInput(value) {
+  if (!value) return "";
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const match = String(value).match(/^(\d{4})[:/-](\d{2})[:/-](\d{2})/);
+  if (!match) return "";
+
+  const [, year, month, day] = match;
+  return `${year}-${month}-${day}`;
+}
+
 // -------------------------------------------
 // MAIN COMPONENT
 // -------------------------------------------
@@ -140,7 +172,7 @@ export default function ImageUpload() {
   const [images, setImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isError, setIsError] = useState(false);
+  const [, setIsError] = useState(false);
 
   const [defaultDate, setDefaultDate] = useState("");
   const [defaultTags, setDefaultTags] = useState([]);
@@ -203,128 +235,179 @@ export default function ImageUpload() {
   async function handleConfirmUpload() {
     setIsUploading(true);
     setIsError(false);
+    let hadError = false;
 
-    for (const image of images) {
-      setImages((prevImages) =>
-        prevImages.map((img) =>
-          img.localId === image.localId
-            ? { ...img, status: "uploading", error: "" }
-            : img
-        )
-      );
-
-      let preparedFile;
-      try {
-        preparedFile = await prepareFileForUpload(image.file);
-      } catch (err) {
-        toastError(`Error preparing ${image.file.name}: ${err.message}`);
+    try {
+      for (const image of images) {
         setImages((prevImages) =>
           prevImages.map((img) =>
             img.localId === image.localId
-              ? { ...img, status: "error", error: err.message }
+              ? { ...img, status: "uploading", error: "" }
               : img
           )
         );
-        setIsError(true);
-        return;
-      }
 
-      const response = await fetch(import.meta.env.VITE_PRESIGN_UPLOAD_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          filename: preparedFile.name,
-          contentType: preparedFile.type
-        })
-      });
+        let preparedFile;
+        try {
+          preparedFile = await prepareFileForUpload(image.file);
+        } catch (err) {
+          toastError(`Error preparing ${image.file.name}: ${err.message}`);
+          setImages((prevImages) =>
+            prevImages.map((img) =>
+              img.localId === image.localId
+                ? { ...img, status: "error", error: err.message }
+                : img
+            )
+          );
+          hadError = true;
+          setIsError(true);
+          continue;
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        toastError(`Upload failed for ${image.file.name}: ${errorData.error}`);
+        let uploadUrl;
+        let s3Key;
+        let publicUrl;
+
+        try {
+          const response = await fetch(import.meta.env.VITE_PRESIGN_UPLOAD_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              filename: preparedFile.name,
+              contentType: preparedFile.type
+            })
+          });
+
+          if (!response.ok) {
+            let errorMessage = "Presigned upload request failed.";
+
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.error || errorMessage;
+            } catch {
+              // Keep the generic message when the API does not return JSON.
+            }
+
+            throw new Error(errorMessage);
+          }
+
+          const uploadData = await response.json();
+          uploadUrl = uploadData.uploadUrl;
+          s3Key = uploadData.s3Key;
+          publicUrl = uploadData.publicUrl;
+        } catch (err) {
+          toastError(`Upload failed for ${image.file.name}: ${err.message}`);
+          setImages((prevImages) =>
+            prevImages.map((img) =>
+              img.localId === image.localId
+                ? { ...img, status: "error", error: err.message }
+                : img
+            )
+          );
+          hadError = true;
+          setIsError(true);
+          continue;
+        }
+
+        try {
+          const uploadResponse = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": preparedFile.type
+            },
+            body: preparedFile
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error("S3 upload request failed.");
+          }
+        } catch (err) {
+          toastError(`Upload failed for ${image.file.name}: ${err.message}`);
+          setImages((prevImages) =>
+            prevImages.map((img) =>
+              img.localId === image.localId
+                ? { ...img, status: "error", error: err.message }
+                : img
+            )
+          );
+          hadError = true;
+          setIsError(true);
+          continue;
+        }
+
+        // get width and height of the image for metadata
+        let dimensions;
+        try {
+          dimensions = await getImageDimensions(preparedFile);
+        } catch (err) {
+          toastError(
+            `Failed to read metadata for ${image.file.name}: ${err.message}`
+          );
+          setImages((prevImages) =>
+            prevImages.map((img) =>
+              img.localId === image.localId
+                ? { ...img, status: "error", error: err.message }
+                : img
+            )
+          );
+          hadError = true;
+          setIsError(true);
+          continue;
+        }
+
+        // Save metadata to Firestore
+        try {
+          await addDoc(collection(db, "media"), {
+            title: image.title || preparedFile.name.replace(/\.[^/.]+$/, ""),
+            filename: preparedFile.name,
+            contentType: preparedFile.type,
+            s3Key: s3Key,
+            url: publicUrl,
+            width: dimensions.width,
+            height: dimensions.height,
+            date: image.date || "",
+            tagIds: (image.selectedTags || []).map((tag) => tag.id),
+            tagNames: (image.selectedTags || [])
+              .map((tag) => tag.name)
+              .filter(Boolean),
+            createdByRole: "admin", // Replace with actual user role if available
+            createdAt: serverTimestamp(),
+            updatedByRole: "admin", // Replace with actual user role if available
+            updatedAt: serverTimestamp()
+          });
+        } catch (err) {
+          toastError(
+            `Failed to save metadata for ${image.file.name}: ${err.message}`
+          );
+          setImages((prevImages) =>
+            prevImages.map((img) =>
+              img.localId === image.localId
+                ? { ...img, status: "error", error: err.message }
+                : img
+            )
+          );
+          hadError = true;
+          setIsError(true);
+          continue;
+        }
+
         setImages((prevImages) =>
           prevImages.map((img) =>
             img.localId === image.localId
-              ? { ...img, status: "error", error: errorData.error }
+              ? { ...img, status: "success", error: "" }
               : img
           )
         );
-        setIsError(true);
-        return;
+
+        removeFile(image.localId);
       }
-
-      const { uploadUrl, s3Key, publicUrl } = await response.json();
-
-      try {
-        const uploadResponse = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": preparedFile.type
-          },
-          body: preparedFile
-        });
-      } catch (err) {
-        toastError(`Upload failed for ${image.file.name}: ${err.message}`);
-        setImages((prevImages) =>
-          prevImages.map((img) =>
-            img.localId === image.localId
-              ? { ...img, status: "error", error: err.message }
-              : img
-          )
-        );
-        setIsError(true);
-      }
-
-      // get width and height of the image for metadata
-
-      const { width, height } = await getImageDimensions(preparedFile);
-
-      // Save metadata to Firestore
-      try {
-        await addDoc(collection(db, "media"), {
-          title: image.title || preparedFile.name.replace(/\.[^/.]+$/, ""),
-          filename: preparedFile.name,
-          contentType: preparedFile.type,
-          s3Key: s3Key,
-          url: publicUrl,
-          width: width,
-          height: height,
-          tagIds: (image.selectedTags || []).map((tag) => tag.id),
-          tagSlugs: (image.selectedTags || []).map((tag) => tag.slug),
-          createdByRole: "admin", // Replace with actual user role if available
-          createdAt: serverTimestamp(),
-          updatedByRole: "admin", // Replace with actual user role if available
-          updatedAt: serverTimestamp()
-        });
-      } catch (err) {
-        toastError(
-          `Failed to save metadata for ${image.file.name}: ${err.message}`
-        );
-        setImages((prevImages) =>
-          prevImages.map((img) =>
-            img.localId === image.localId
-              ? { ...img, status: "error", error: err.message }
-              : img
-          )
-        );
-        setIsError(true);
-      }
-
-      setImages((prevImages) =>
-        prevImages.map((img) =>
-          img.localId === image.localId
-            ? { ...img, status: "success", error: "" }
-            : img
-        )
-      );
-
-      removeFile(image.localId);
+    } finally {
+      setIsUploading(false);
     }
 
-    setIsUploading(false);
-
-    if (!isError) {
+    if (!hadError) {
       toastSuccess("All images uploaded successfully!");
       setTimeout(() => {
         navigate("/library");
@@ -352,7 +435,11 @@ export default function ImageUpload() {
         <div className="w-full max-w-md">
           <label
             htmlFor="image-upload"
-            className="px-4 py-10 flex flex-col items-center justify-center rounded-3xl bg-ui-surface cursor-pointer border-2 border-dashed border-transparent hover:border-brand-primary transition"
+            className={`px-4 py-10 flex flex-col items-center justify-center rounded-3xl bg-ui-surface cursor-pointer border-2 border-dashed transition ${
+              isDragging
+                ? "border-brand-primary"
+                : "border-transparent hover:border-brand-primary"
+            }`}
             onDragEnter={(e) => {
               e.preventDefault();
               setIsDragging(true);

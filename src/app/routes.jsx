@@ -71,7 +71,7 @@ const router = createHashRouter([
         element: <NotFound />
       },
       {
-        path: "/Forbidden",
+        path: "/forbidden",
         element: <Forbidden />
       }
     ]

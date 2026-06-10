@@ -56,7 +56,7 @@ export default function Categories() {
 
     try {
       setIsCreating(true);
-      await createCategory({ name: trimmed });
+      await createCategory(trimmed);
       setNewCategoryName("");
       toastSuccess("Category created.");
       await loadCategories();
@@ -99,7 +99,7 @@ export default function Categories() {
 
     try {
       setWorkingId(categoryId);
-      await renameCategory(categoryId, { name: trimmed });
+      await renameCategory(categoryId, trimmed);
       toastSuccess("Category renamed.");
       cancelEditing();
       await loadCategories();

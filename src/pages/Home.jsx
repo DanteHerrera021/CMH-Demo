@@ -16,7 +16,7 @@ export default function Home() {
   const PAGE_SIZE = isMobile ? 5 : 10;
 
   const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const didInitialLoad = useRef(false);
 
   const [totalImages, setTotalImages] = useState(0);
@@ -72,9 +72,9 @@ export default function Home() {
 
       setTotalImages(imageCount);
       setTagAmount(tagCount);
-      setLastUpload(
-        convertTimestamp(fetchedImage.createdAt).toLocaleDateString()
-      );
+
+      const uploadDate = convertTimestamp(fetchedImage?.createdAt);
+      setLastUpload(uploadDate ? uploadDate.toLocaleDateString() : null);
     } catch (e) {
       console.error(e);
       toastError("Failed to load stats. Please try again.");

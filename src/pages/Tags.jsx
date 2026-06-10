@@ -96,7 +96,7 @@ export default function Tags() {
       setIsCreating(true);
       await createTag({
         name: trimmedName,
-        category: newTagCategory
+        categoryId: newTagCategory
       });
 
       setNewTagName("");
@@ -209,7 +209,13 @@ export default function Tags() {
                 <h2 className="text-lg font-semibold text-ui-text">Add Tag</h2>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleCreateTag();
+                }}
+                className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]"
+              >
                 <input
                   type="text"
                   value={newTagName}
@@ -225,21 +231,20 @@ export default function Tags() {
                 >
                   <option value="">Select category</option>
                   {categories.map((category) => (
-                    <option key={category.id} value={category.name}>
+                    <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
                   ))}
                 </select>
 
                 <Button
-                  type="button"
+                  type="submit"
                   text={isCreating ? "Creating..." : "Create"}
                   rounded="sm"
                   className="bg-brand-primary text-white"
                   disabled={isCreating}
-                  onClick={handleCreateTag}
                 />
-              </div>
+              </form>
             </div>
 
             <div className="rounded-2xl border border-ui-border bg-ui-surface p-5 shadow-sm md:p-6">

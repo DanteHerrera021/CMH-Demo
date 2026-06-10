@@ -14,7 +14,7 @@ import {
 import Button from "../components/ui/Button";
 import TagCategoryField from "../components/assets/TagCategoryField";
 import { getAllCategories, getTagById } from "../firebase/tagsApi";
-import { updateMediaTags } from "../firebase/mediaApi";
+import { updateMedia } from "../firebase/mediaApi";
 import { toastError, toastSuccess } from "../utils/toastHandler";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase/config";
@@ -44,7 +44,7 @@ export default function Image() {
 
         setCategories(categoryList);
         setSelectedTags(hydratedTags.filter(Boolean));
-        setDate(formatDateForInput(image.createdAt));
+        setDate(image.date || formatDateForInput(image.createdAt));
         setName(image.title);
       } catch (error) {
         console.error("Failed to load image page data:", error);
@@ -102,7 +102,7 @@ export default function Image() {
         );
 
         setSelectedTags(hydratedTags.filter(Boolean));
-        setDate(formatDateForInput(image.createdAt));
+        setDate(image.date || formatDateForInput(image.createdAt));
         setName(image.title);
       } catch (error) {
         console.error("Failed to revert image details:", error);
@@ -119,7 +119,12 @@ export default function Image() {
 
     try {
       setIsSaving(true);
-      await updateMediaTags(image.id, selectedTags);
+      await updateMedia(image.id, {
+        title: name.trim() || image.filename.replace(/\.[^/.]+$/, ""),
+        date,
+        tagIds: selectedTags.map((tag) => tag.id),
+        tagNames: selectedTags.map((tag) => tag.name).filter(Boolean)
+      });
       toastSuccess("Image details saved successfully!");
     } catch (error) {
       console.error("Failed to save image details:", error);

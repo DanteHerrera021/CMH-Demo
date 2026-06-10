@@ -10,10 +10,12 @@ import {
     where,
     updateDoc,
     getCountFromServer,
+    serverTimestamp,
     Timestamp
 } from "firebase/firestore";
 import { db } from "./config";
 import { mapMediaDoc } from "../maps/MapMediaDoc";
+import { getTagsByIds } from "./tagsApi";
 
 function convertToTimestamp(dateStr, isEnd = false) {
     if (!dateStr) return null;
@@ -70,8 +72,10 @@ export async function getMediaPage(lastDoc = null, pageSize = 20, tags = [], sta
 
     const snap = await getDocs(q);
 
+    const images = await hydrateMediaTagNames(snap.docs.map(mapMediaDoc));
+
     return {
-        images: snap.docs.map(mapMediaDoc),
+        images,
         nextCursor: snap.docs.length
             ? snap.docs[snap.docs.length - 1]
             : null,
@@ -80,7 +84,36 @@ export async function getMediaPage(lastDoc = null, pageSize = 20, tags = [], sta
 
 export async function updateMedia(id, updates) {
     const ref = doc(db, "media", id);
-    await updateDoc(ref, updates);
+    await updateDoc(ref, {
+        ...updates,
+        updatedAt: serverTimestamp()
+    });
+}
+
+async function hydrateMediaTagNames(images) {
+    const missingTagNameImages = images.filter(
+        (image) => image.tagIds.length > 0 && image.tagNames.length === 0
+    );
+
+    if (missingTagNameImages.length === 0) return images;
+
+    const tagIds = [
+        ...new Set(missingTagNameImages.flatMap((image) => image.tagIds))
+    ];
+
+    const tags = await getTagsByIds(tagIds);
+    const tagsById = new Map(tags.map((tag) => [tag.id, tag]));
+
+    return images.map((image) => {
+        if (image.tagNames.length > 0) return image;
+
+        return {
+            ...image,
+            tagNames: image.tagIds
+                .map((tagId) => tagsById.get(tagId)?.name)
+                .filter(Boolean)
+        };
+    });
 }
 
 export async function updateMediaTags(id, tags) {
@@ -88,7 +121,7 @@ export async function updateMediaTags(id, tags) {
 
     await updateDoc(ref, {
         tagIds: tags.map((tag) => tag.id),
-        tagSlugs: tags.map((tag) => tag.slugName ?? tag.slug).filter(Boolean)
+        tagNames: tags.map((tag) => tag.name).filter(Boolean)
     });
 }
 

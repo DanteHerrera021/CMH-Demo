@@ -25,14 +25,13 @@ const DEFAULT_SETTINGS = {
 };
 
 export default function Settings() {
-  const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+      setIsAdmin(false);
 
-      if (user.email.substring(0, user.email.indexOf("@")) === "admin") {
+      if (user?.email?.substring(0, user.email.indexOf("@")) === "admin") {
         setIsAdmin(true);
       }
     });
@@ -195,7 +194,7 @@ export default function Settings() {
       console.error("Failed to save settings:", error);
       toastError("Failed to save settings.");
     } finally {
-      setTimeout(setIsSaving(false), 500);
+      setTimeout(() => setIsSaving(false), 500);
     }
   }
 

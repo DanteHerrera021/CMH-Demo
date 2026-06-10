@@ -1,4 +1,4 @@
-import { collection, doc, endAt, getCountFromServer, getDoc, getDocs, limit, orderBy, query, startAt, where } from "firebase/firestore";
+import { collection, doc, endAt, getCountFromServer, getDoc, getDocs, limit, orderBy, query, startAt, where, addDoc, serverTimestamp, writeBatch, deleteDoc, updateDoc } from "firebase/firestore";
 import { mapCategoryDoc } from "../maps/MapCategoryDoc";
 import { mapTagDoc } from "../maps/MapTagDoc";
 import { db } from "./config";
@@ -30,12 +30,12 @@ function slugify(value) {
 export async function autocompleteTags(category = null, text, returnLimit = 8) {
     if (!text) return [];
 
-    const inputToSlug = text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+    const inputToName = toLowerNormalized(text);
 
     let constraints = [
-        orderBy("slugName"),
-        startAt(inputToSlug),
-        endAt(inputToSlug + "\uf8ff"),
+        orderBy("nameLower"),
+        startAt(inputToName),
+        endAt(inputToName + "\uf8ff"),
         limit(returnLimit)
     ];
 
@@ -92,7 +92,7 @@ export async function getTagsByCategory(category) {
     const q = query(
         collection(db, "tags"),
         where("category", "==", category),
-        orderBy("slugName")
+        orderBy("name")
     );
 
     const snap = await getDocs(q);

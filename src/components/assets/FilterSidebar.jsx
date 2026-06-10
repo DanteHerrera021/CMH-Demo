@@ -1,6 +1,6 @@
-import { CalendarDays, Search, X, RotateCcw, Filter } from "lucide-react";
+import { CalendarDays, X, RotateCcw, Filter } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getAllCategories, autocompleteTags } from "../../firebase/tagsApi";
+import { getAllCategories } from "../../firebase/tagsApi";
 import { toastError } from "../../utils/toastHandler";
 import TagAutocomplete from "./TagAutocomplete";
 
@@ -109,7 +109,7 @@ export default function FilterSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        <section className="rounded-xl border border-ui-border p-4">
+        <section className="rounded-xl border border-ui-border p-4 overflow-hidden">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-ui-text">
               Active Filters

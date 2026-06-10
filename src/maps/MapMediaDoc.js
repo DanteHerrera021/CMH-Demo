@@ -10,8 +10,9 @@ export function mapMediaDoc(docSnap) {
     s3key: data.s3Key ?? "",
     width: data.width ?? null,
     height: data.height ?? null,
+    date: data.date ?? "",
     tagIds: data.tagIds ?? [],
-    tagSlugs: data.tagSlugs ?? [],
+    tagNames: data.tagNames ?? [],
     createdAt: data.createdAt ?? null,
     updatedAt: data.updatedAt ?? null,
   };
